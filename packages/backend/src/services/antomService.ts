@@ -31,11 +31,12 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   const requestTime = Date.now().toString();
   const { clientId, privateKey, publicKey, baseUrl, agentToken } = config.antom;
 
-  // Resolve actual API path (with sandbox prefix if needed)
+  // Resolve actual URL path (with sandbox prefix if needed)
+  // Note: sandbox prefix is only for URL routing, signature uses the original path
   const actualPath = getApiPath(path);
 
-  // Generate signature (use actual path for signing)
-  const signature = signRequest(actualPath, clientId, requestTime, requestBody, privateKey);
+  // Generate signature (use original path without sandbox prefix)
+  const signature = signRequest(path, clientId, requestTime, requestBody, privateKey);
   const signatureHeader = buildSignatureHeader(signature);
 
   // Build request
@@ -66,7 +67,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   console.log(`[Antom] <<< ${actualPath} | HTTP ${response.status} ${response.statusText}`);
   console.log(`[Antom] <<< Response body: ${responseBody.substring(0, 1000)}${responseBody.length > 1000 ? '...' : ''}`);
 
-  // Verify response signature
+  // Verify response signature (use original path without sandbox prefix)
   const respClientId = response.headers.get('client-id') || clientId;
   const respTime = response.headers.get('response-time') || '';
   const respSignature = response.headers.get('signature') || '';
@@ -74,7 +75,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   if (respSignature && publicKey) {
     const parsed = parseSignatureHeader(respSignature);
     if (parsed) {
-      const isValid = verifySignature(actualPath, respClientId, respTime, responseBody, parsed.signature, publicKey);
+      const isValid = verifySignature(path, respClientId, respTime, responseBody, parsed.signature, publicKey);
       if (!isValid) {
         console.error(`[Antom] !!! Signature verification failed for ${actualPath}`);
         throw new Error('Antom response signature verification failed');
