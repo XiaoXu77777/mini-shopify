@@ -1,0 +1,266 @@
+export declare const merchantService: {
+    create(data: {
+        shopName: string;
+        region?: string;
+        email: string;
+    }): Promise<{
+        registrationRequestId: string | null;
+        riskLevel: string | null;
+        riskReasonCodes: string | null;
+        kycStatus: string;
+        id: string;
+        shopName: string;
+        region: string;
+        email: string;
+        wfAccountId: string | null;
+        referenceMerchantId: string | null;
+        offboardingRequestId: string | null;
+        settlementCurrency: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    list(): Promise<({
+        paymentMethods: {
+            paymentMethodType: string;
+            merchantId: string;
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            activatedAt: Date | null;
+            deactivatedAt: Date | null;
+        }[];
+    } & {
+        registrationRequestId: string | null;
+        riskLevel: string | null;
+        riskReasonCodes: string | null;
+        kycStatus: string;
+        id: string;
+        shopName: string;
+        region: string;
+        email: string;
+        wfAccountId: string | null;
+        referenceMerchantId: string | null;
+        offboardingRequestId: string | null;
+        settlementCurrency: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+    })[]>;
+    getById(id: string): Promise<({
+        kycInfo: {
+            rejectedFields: string | null;
+            merchantId: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            legalName: string | null;
+            companyType: string | null;
+            certificateType: string | null;
+            certificateNo: string | null;
+            branchName: string | null;
+            companyUnit: string | null;
+            addressRegion: string | null;
+            addressState: string | null;
+            addressCity: string | null;
+            address1: string | null;
+            address2: string | null;
+            zipCode: string | null;
+            mcc: string | null;
+            doingBusinessAs: string | null;
+            websiteUrl: string | null;
+            englishName: string | null;
+            serviceDescription: string | null;
+            appName: string | null;
+            merchantBrandName: string | null;
+            contactType: string | null;
+            contactInfo: string | null;
+            legalRepName: string | null;
+            legalRepIdType: string | null;
+            legalRepIdNo: string | null;
+            legalRepDob: string | null;
+            wfKycData: string | null;
+        } | null;
+        paymentMethods: {
+            paymentMethodType: string;
+            merchantId: string;
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            activatedAt: Date | null;
+            deactivatedAt: Date | null;
+        }[];
+        entityAssociations: {
+            merchantId: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            associationType: string;
+            shareholdingRatio: string | null;
+            fullName: string | null;
+            firstName: string | null;
+            lastName: string | null;
+            dateOfBirth: string | null;
+            idType: string | null;
+            idNo: string | null;
+        }[];
+    } & {
+        registrationRequestId: string | null;
+        riskLevel: string | null;
+        riskReasonCodes: string | null;
+        kycStatus: string;
+        id: string;
+        shopName: string;
+        region: string;
+        email: string;
+        wfAccountId: string | null;
+        referenceMerchantId: string | null;
+        offboardingRequestId: string | null;
+        settlementCurrency: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }) | null>;
+    updateWfAccount(id: string, wfAccountId: string): Promise<{
+        registrationRequestId: string | null;
+        riskLevel: string | null;
+        riskReasonCodes: string | null;
+        kycStatus: string;
+        id: string;
+        shopName: string;
+        region: string;
+        email: string;
+        wfAccountId: string | null;
+        referenceMerchantId: string | null;
+        offboardingRequestId: string | null;
+        settlementCurrency: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    upsertKyc(merchantId: string, data: {
+        legalName?: string;
+        companyType?: string;
+        certificateType?: string;
+        certificateNo?: string;
+        branchName?: string;
+        companyUnit?: string;
+        addressRegion?: string;
+        addressState?: string;
+        addressCity?: string;
+        address1?: string;
+        address2?: string;
+        zipCode?: string;
+        mcc?: string;
+        doingBusinessAs?: string;
+        websiteUrl?: string;
+        englishName?: string;
+        serviceDescription?: string;
+        appName?: string;
+        merchantBrandName?: string;
+        contactType?: string;
+        contactInfo?: string;
+        legalRepName?: string;
+        legalRepIdType?: string;
+        legalRepIdNo?: string;
+        legalRepDob?: string;
+        wfKycData?: Record<string, unknown>;
+    }): Promise<{
+        rejectedFields: string | null;
+        merchantId: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        legalName: string | null;
+        companyType: string | null;
+        certificateType: string | null;
+        certificateNo: string | null;
+        branchName: string | null;
+        companyUnit: string | null;
+        addressRegion: string | null;
+        addressState: string | null;
+        addressCity: string | null;
+        address1: string | null;
+        address2: string | null;
+        zipCode: string | null;
+        mcc: string | null;
+        doingBusinessAs: string | null;
+        websiteUrl: string | null;
+        englishName: string | null;
+        serviceDescription: string | null;
+        appName: string | null;
+        merchantBrandName: string | null;
+        contactType: string | null;
+        contactInfo: string | null;
+        legalRepName: string | null;
+        legalRepIdType: string | null;
+        legalRepIdNo: string | null;
+        legalRepDob: string | null;
+        wfKycData: string | null;
+    }>;
+    upsertEntityAssociations(merchantId: string, associations: {
+        associationType: string;
+        shareholdingRatio?: string;
+        fullName?: string;
+        firstName?: string;
+        lastName?: string;
+        dateOfBirth?: string;
+        idType?: string;
+        idNo?: string;
+    }[]): Promise<void>;
+    register(merchantId: string, paymentMethodTypes: string[]): Promise<{
+        registrationRequestId: string;
+    }>;
+    offboard(merchantId: string): Promise<{
+        offboardingRequestId: string;
+    }>;
+    deactivatePaymentMethod(paymentMethodId: string): Promise<{
+        paymentMethodType: string;
+        merchantId: string;
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        activatedAt: Date | null;
+        deactivatedAt: Date | null;
+    }>;
+    getPaymentMethods(merchantId: string): Promise<{
+        paymentMethodType: string;
+        merchantId: string;
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        activatedAt: Date | null;
+        deactivatedAt: Date | null;
+    }[]>;
+    getNotifications(merchantId: string): Promise<{
+        notifyId: string;
+        notificationType: string;
+        merchantId: string;
+        id: string;
+        payload: string;
+        processedAt: Date;
+    }[]>;
+    getStats(): Promise<{
+        total: number;
+        approved: number;
+        pending: number;
+        offboarded: number;
+    }>;
+    getRecentNotifications(limit?: number): Promise<({
+        merchant: {
+            shopName: string;
+        };
+    } & {
+        notifyId: string;
+        notificationType: string;
+        merchantId: string;
+        id: string;
+        payload: string;
+        processedAt: Date;
+    })[]>;
+};
+//# sourceMappingURL=merchantService.d.ts.map
