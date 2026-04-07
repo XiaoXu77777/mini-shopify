@@ -15,6 +15,7 @@ export const config = {
     agentToken: process.env.ANTOM_AGENT_TOKEN || '',
     parentMerchantId: process.env.PARENT_MERCHANT_ID || '2188120041577055',
     defaultSettlementCurrency: process.env.DEFAULT_SETTLEMENT_CURRENCY || 'SGD',
+    sandbox: process.env.ANTOM_SANDBOX !== 'false', // 默认 true，生产环境需显式设为 false
   },
 
   mockMode: process.env.MOCK_MODE === 'true',

@@ -2,11 +2,23 @@ import { config } from '../utils/config';
 import { signRequest, verifySignature, buildSignatureHeader, parseSignatureHeader } from '../utils/crypto';
 import type { AntomResponse, AntomRegisterRequest, AntomInquireRequest, AntomOffboardRequest } from '../types';
 
-const REGISTER_PATH = '/ams/api/v1/isv/register';
-const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/isv/inquiry_register';
-const OFFBOARD_PATH = '/ams/api/v1/isv/offboard';
-const DEACTIVATE_PATH = '/ams/api/v1/isv/deactivate';
+// API paths (production format, sandbox prefix will be added dynamically)
+const REGISTER_PATH = '/ams/api/v1/merchants/register';
+const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchants/inquiryRegistration';
+const OFFBOARD_PATH = '/ams/api/v1/merchants/offboard';
+const DEACTIVATE_PATH = '/ams/api/v1/merchants/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';
+
+/**
+ * Get the actual API path, inserting /sandbox/ prefix for sandbox environment.
+ * Production: /ams/api/v1/merchants/register
+ * Sandbox:    /ams/sandbox/api/v1/merchants/register
+ */
+function getApiPath(path: string): string {
+  if (!config.antom.sandbox) return path;
+  // Insert 'sandbox' after '/ams/'
+  return path.replace('/ams/', '/ams/sandbox/');
+}
 
 interface AntomRequestOptions {
   path: string;
@@ -19,12 +31,15 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   const requestTime = Date.now().toString();
   const { clientId, privateKey, publicKey, baseUrl, agentToken } = config.antom;
 
-  // Generate signature
-  const signature = signRequest(path, clientId, requestTime, requestBody, privateKey);
+  // Resolve actual API path (with sandbox prefix if needed)
+  const actualPath = getApiPath(path);
+
+  // Generate signature (use actual path for signing)
+  const signature = signRequest(actualPath, clientId, requestTime, requestBody, privateKey);
   const signatureHeader = buildSignatureHeader(signature);
 
   // Build request
-  const url = `${baseUrl}${path}`;
+  const url = `${baseUrl}${actualPath}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=UTF-8',
     'Client-Id': clientId,
@@ -37,7 +52,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   }
 
   // Send request
-  console.log(`[Antom] >>> ${path} | clientId=${clientId} | requestTime=${requestTime}`);
+  console.log(`[Antom] >>> ${actualPath} | url=${url} | clientId=${clientId} | requestTime=${requestTime}`);
   console.log(`[Antom] >>> Request body: ${requestBody.substring(0, 500)}${requestBody.length > 500 ? '...' : ''}`);
 
   const response = await fetch(url, {
@@ -48,7 +63,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
 
   const responseBody = await response.text();
 
-  console.log(`[Antom] <<< ${path} | HTTP ${response.status} ${response.statusText}`);
+  console.log(`[Antom] <<< ${actualPath} | HTTP ${response.status} ${response.statusText}`);
   console.log(`[Antom] <<< Response body: ${responseBody.substring(0, 1000)}${responseBody.length > 1000 ? '...' : ''}`);
 
   // Verify response signature
@@ -59,9 +74,9 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   if (respSignature && publicKey) {
     const parsed = parseSignatureHeader(respSignature);
     if (parsed) {
-      const isValid = verifySignature(path, respClientId, respTime, responseBody, parsed.signature, publicKey);
+      const isValid = verifySignature(actualPath, respClientId, respTime, responseBody, parsed.signature, publicKey);
       if (!isValid) {
-        console.error(`[Antom] !!! Signature verification failed for ${path}`);
+        console.error(`[Antom] !!! Signature verification failed for ${actualPath}`);
         throw new Error('Antom response signature verification failed');
       }
     }
@@ -70,7 +85,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   try {
     return JSON.parse(responseBody) as AntomResponse;
   } catch (e) {
-    console.error(`[Antom] !!! Failed to parse response JSON for ${path}:`, e);
+    console.error(`[Antom] !!! Failed to parse response JSON for ${actualPath}:`, e);
     console.error(`[Antom] !!! Raw response body: ${responseBody}`);
     throw new Error(`Antom API response is not valid JSON (HTTP ${response.status}): ${responseBody.substring(0, 200)}`);
   }
