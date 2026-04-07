@@ -37,6 +37,9 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   }
 
   // Send request
+  console.log(`[Antom] >>> ${path} | clientId=${clientId} | requestTime=${requestTime}`);
+  console.log(`[Antom] >>> Request body: ${requestBody.substring(0, 500)}${requestBody.length > 500 ? '...' : ''}`);
+
   const response = await fetch(url, {
     method: 'POST',
     headers,
@@ -44,6 +47,9 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   });
 
   const responseBody = await response.text();
+
+  console.log(`[Antom] <<< ${path} | HTTP ${response.status} ${response.statusText}`);
+  console.log(`[Antom] <<< Response body: ${responseBody.substring(0, 1000)}${responseBody.length > 1000 ? '...' : ''}`);
 
   // Verify response signature
   const respClientId = response.headers.get('client-id') || clientId;
@@ -55,12 +61,19 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
     if (parsed) {
       const isValid = verifySignature(path, respClientId, respTime, responseBody, parsed.signature, publicKey);
       if (!isValid) {
+        console.error(`[Antom] !!! Signature verification failed for ${path}`);
         throw new Error('Antom response signature verification failed');
       }
     }
   }
 
-  return JSON.parse(responseBody) as AntomResponse;
+  try {
+    return JSON.parse(responseBody) as AntomResponse;
+  } catch (e) {
+    console.error(`[Antom] !!! Failed to parse response JSON for ${path}:`, e);
+    console.error(`[Antom] !!! Raw response body: ${responseBody}`);
+    throw new Error(`Antom API response is not valid JSON (HTTP ${response.status}): ${responseBody.substring(0, 200)}`);
+  }
 }
 
 /**
