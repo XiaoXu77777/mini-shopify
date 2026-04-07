@@ -297,6 +297,8 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
       paymentMethodTypes,
     });
 
+    console.log('[Merchant] Antom register response:', JSON.stringify(antomResponse, null, 2));
+
     // In mock mode, schedule auto notifications
     if (config.mockMode) {
       mockService.scheduleRegisterNotifications(
