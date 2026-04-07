@@ -152,17 +152,19 @@ exports.merchantService = {
             orderBy: { processedAt: 'desc' },
         });
     },
-    async getStats() {
+    async getStats(merchantId) {
+        const where = merchantId ? { id: merchantId } : {};
         const [total, approved, pending, offboarded] = await Promise.all([
-            prisma.merchant.count(),
-            prisma.merchant.count({ where: { kycStatus: 'APPROVED' } }),
-            prisma.merchant.count({ where: { kycStatus: 'PENDING' } }),
-            prisma.merchant.count({ where: { status: 'OFFBOARDED' } }),
+            prisma.merchant.count({ where }),
+            prisma.merchant.count({ where: { ...where, kycStatus: 'APPROVED' } }),
+            prisma.merchant.count({ where: { ...where, kycStatus: 'PENDING' } }),
+            prisma.merchant.count({ where: { ...where, status: 'OFFBOARDED' } }),
         ]);
         return { total, approved, pending, offboarded };
     },
-    async getRecentNotifications(limit = 10) {
+    async getRecentNotifications(limit = 10, merchantId) {
         return prisma.notification.findMany({
+            where: merchantId ? { merchantId } : undefined,
             orderBy: { processedAt: 'desc' },
             take: limit,
             include: { merchant: { select: { shopName: true } } },

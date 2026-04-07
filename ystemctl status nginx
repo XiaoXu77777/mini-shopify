@@ -1,0 +1,19 @@
+[0;1;32m●[0m nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (]8;;file://iZuf667dv56hf4xzyy0ng9Z/usr/lib/systemd/system/nginx.service/usr/lib/systemd/system/nginx.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Tue 2026-04-07 15:56:47 CST; 2s ago
+       Docs: ]8;;man:nginx(8)man:nginx(8)]8;;
+    Process: 48645 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 48649 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 48650 (nginx)
+      Tasks: 3 (limit: 1860)
+     Memory: 2.4M (peak: 2.8M)
+        CPU: 32ms
+     CGroup: /system.slice/nginx.service
+             ├─[0;38;5;245m48650 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"[0m
+             ├─[0;38;5;245m48651 "nginx: worker process"[0m
+             └─[0;38;5;245m48652 "nginx: worker process"[0m
+
+Apr 07 15:56:47 iZuf667dv56hf4xzyy0ng9Z systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Apr 07 15:56:47 iZuf667dv56hf4xzyy0ng9Z nginx[48645]: 2026/04/07 15:56:47 [warn] 48645#48645: conflicting server name "_" on 0.0.0.0:80, ignored
+Apr 07 15:56:47 iZuf667dv56hf4xzyy0ng9Z nginx[48649]: 2026/04/07 15:56:47 [warn] 48649#48649: conflicting server name "_" on 0.0.0.0:80, ignored
+Apr 07 15:56:47 iZuf667dv56hf4xzyy0ng9Z systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.

@@ -244,13 +244,13 @@ export declare const merchantService: {
         payload: string;
         processedAt: Date;
     }[]>;
-    getStats(): Promise<{
+    getStats(merchantId?: string): Promise<{
         total: number;
         approved: number;
         pending: number;
         offboarded: number;
     }>;
-    getRecentNotifications(limit?: number): Promise<({
+    getRecentNotifications(limit?: number, merchantId?: string): Promise<({
         merchant: {
             shopName: string;
         };

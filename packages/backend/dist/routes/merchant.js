@@ -37,10 +37,11 @@ router.get('/', async (_req, res) => {
     }
 });
 // GET /api/merchants/stats - Dashboard stats
-router.get('/stats', async (_req, res) => {
+router.get('/stats', async (req, res) => {
     try {
-        const stats = await merchantService_1.merchantService.getStats();
-        const recentNotifications = await merchantService_1.merchantService.getRecentNotifications();
+        const merchantId = req.query.merchantId ? paramStr(req.query.merchantId) : undefined;
+        const stats = await merchantService_1.merchantService.getStats(merchantId);
+        const recentNotifications = await merchantService_1.merchantService.getRecentNotifications(10, merchantId);
         res.json({ ...stats, recentNotifications });
     }
     catch (err) {
@@ -176,6 +177,105 @@ router.post('/:id/register', async (req, res) => {
     catch (err) {
         console.error('[Merchant] Register error:', err);
         res.status(500).json({ error: 'Failed to register merchant' });
+    }
+});
+// POST /api/merchants/:id/setup-payments - Combined WF auth + KYB query + KYC fill + register
+// This endpoint handles the full flow: query KYB from Antom using WF auth, save KYC, and register
+router.post('/:id/setup-payments', async (req, res) => {
+    try {
+        const id = paramStr(req.params.id);
+        const { wfAccountId, accessToken, customerId } = req.body;
+        if (!wfAccountId || !accessToken || !customerId) {
+            res.status(400).json({ success: false, error: 'wfAccountId, accessToken, and customerId are required' });
+            return;
+        }
+        const merchant = await merchantService_1.merchantService.getById(id);
+        if (!merchant) {
+            res.status(404).json({ success: false, error: 'Merchant not found' });
+            return;
+        }
+        // Step 1: Save WF account ID
+        await merchantService_1.merchantService.updateWfAccount(id, wfAccountId);
+        // Step 2: Query KYB info from Antom using WF access token
+        const kybResult = await antomService_1.antomService.queryKybInfo(accessToken, customerId);
+        if (!kybResult.success || !kybResult.kybData) {
+            res.status(400).json({ success: false, error: kybResult.error || 'Failed to query KYB information' });
+            return;
+        }
+        const kybData = kybResult.kybData;
+        // Step 3: Fill KYC info from KYB data + extra fields (Shopify auto-fills, merchant doesn't need to input)
+        const kycPayload = {
+            // From KYB data
+            legalName: String(kybData.legalName || ''),
+            companyType: String(kybData.companyType || ''),
+            certificateType: String(kybData.certificateType || ''),
+            certificateNo: String(kybData.certificateNo || ''),
+            branchName: String(kybData.branchName || ''),
+            companyUnit: String(kybData.companyUnit || ''),
+            addressRegion: String(kybData.addressRegion || ''),
+            addressState: String(kybData.addressState || ''),
+            addressCity: String(kybData.addressCity || ''),
+            address1: String(kybData.address1 || ''),
+            address2: String(kybData.address2 || ''),
+            zipCode: String(kybData.zipCode || ''),
+            mcc: String(kybData.mcc || ''),
+            doingBusinessAs: String(kybData.doingBusinessAs || ''),
+            websiteUrl: String(kybData.websiteUrl || ''),
+            englishName: String(kybData.englishName || ''),
+            serviceDescription: String(kybData.serviceDescription || ''),
+            // Extra fields auto-filled by Shopify (not from KYB)
+            appName: merchant.shopName,
+            merchantBrandName: String(kybData.merchantBrandName || merchant.shopName),
+            contactType: String(kybData.contactType || ''),
+            contactInfo: String(kybData.contactInfo || merchant.email),
+            legalRepName: String(kybData.legalRepName || ''),
+            legalRepIdType: String(kybData.legalRepIdType || ''),
+            legalRepIdNo: String(kybData.legalRepIdNo || ''),
+            legalRepDob: String(kybData.legalRepDob || ''),
+            wfKycData: kybData,
+        };
+        await merchantService_1.merchantService.upsertKyc(id, kycPayload);
+        // Step 3b: Save entity associations from KYB data
+        if (Array.isArray(kybData.entityAssociations) && kybData.entityAssociations.length > 0) {
+            const associations = kybData.entityAssociations.map((ea) => ({
+                associationType: String(ea.associationType || 'DIRECTOR'),
+                shareholdingRatio: String(ea.shareholdingRatio || ''),
+                fullName: String(ea.fullName || ''),
+                firstName: String(ea.firstName || ''),
+                lastName: String(ea.lastName || ''),
+                dateOfBirth: String(ea.dateOfBirth || ''),
+                idType: String(ea.idType || ''),
+                idNo: String(ea.idNo || ''),
+            }));
+            await merchantService_1.merchantService.upsertEntityAssociations(id, associations);
+        }
+        // Step 4: Register with all payment methods
+        const paymentMethodTypes = ['Visa', 'Mastercard', 'Discover', 'JCB', 'Diners', 'GooglePay', 'ApplePay', 'AlipayHK', 'Naver Pay', 'Kakao Pay', 'Toss Pay', 'PayNow'];
+        const { registrationRequestId } = await merchantService_1.merchantService.register(id, paymentMethodTypes);
+        // Reload merchant to get fresh data
+        const updatedMerchant = await merchantService_1.merchantService.getById(id);
+        const antomResponse = await antomService_1.antomService.register({
+            registrationRequestId,
+            merchant: {
+                email: merchant.email,
+                referenceMerchantId: merchant.referenceMerchantId || merchant.id,
+                wfAccountId,
+                settlementCurrency: merchant.settlementCurrency,
+            },
+            kycInfo: updatedMerchant?.kycInfo || null,
+            entityAssociations: updatedMerchant?.entityAssociations || [],
+            paymentMethodTypes,
+        });
+        // In mock mode, schedule auto notifications
+        if (config_1.config.mockMode) {
+            mockService_1.mockService.scheduleRegisterNotifications(registrationRequestId, paymentMethodTypes, merchant.referenceMerchantId || merchant.id);
+        }
+        const resultInfo = antomResponse.resultInfo || antomResponse.result;
+        res.json({ success: true, registrationRequestId, resultInfo });
+    }
+    catch (err) {
+        console.error('[Merchant] Setup payments error:', err);
+        res.status(500).json({ success: false, error: 'Failed to setup payments' });
     }
 });
 // GET /api/merchants/:id/registration-status - Query registration status (guide section 4.2)
