@@ -170,10 +170,10 @@ mysql -u root -p
 CREATE DATABASE mini_shopify CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 创建用户（将YourPassword替换为强密码）
-CREATE USER 'shopify_user'@'localhost' IDENTIFIED BY 'YourPassword123!';
+CREATE USER 'shopify_qimen'@'localhost' IDENTIFIED BY '1qaz2wsx!';
 
 -- 授权
-GRANT ALL PRIVILEGES ON mini_shopify.* TO 'shopify_user'@'localhost';
+GRANT ALL PRIVILEGES ON mini_shopify.* TO 'shopify_qimen'@'localhost';
 FLUSH PRIVILEGES;
 
 -- 退出
@@ -303,15 +303,21 @@ cd /var/www/mini-shopify/packages/backend
 
 #### 4.3.1 创建生产环境配置
 
+**操作说明：** 以下命令会创建一个 `.env.production` 文件，**完整复制粘贴执行即可**。
+
 ```bash
+# 进入后端目录
+cd /var/www/mini-shopify/packages/backend
+
+# 创建生产环境配置文件（完整复制下面整段命令，包括EOF）
 cat > .env.production << 'EOF'
 # 服务端口
 PORT=3001
 
-# 数据库配置（将YourPassword替换为你设置的密码）
-DATABASE_URL=mysql://shopify_user:YourPassword123!@localhost:3306/mini_shopify
+# 数据库配置（将YourPassword123!替换为你实际设置的MySQL密码）
+DATABASE_URL=mysql://shopify_qimen:1qaz2wsx@localhost:3306/mini_shopify
 
-# Antom配置（需要填写实际值）
+# Antom配置（需要填写实际值，如果没有可以先保持空或默认值）
 ANTOM_CLIENT_ID=your_client_id
 ANTOM_PRIVATE_KEY=your_private_key
 ANTOM_PUBLIC_KEY=antom_public_key
@@ -328,6 +334,20 @@ NOTIFY_CALLBACK_URL=http://你的公网IP/api/notify/register
 # 环境
 NODE_ENV=production
 EOF
+```
+
+**执行后会：**
+- 在后端目录创建 `.env.production` 文件
+- 文件包含上述所有配置内容
+
+**需要修改的地方：**
+1. `YourPassword123!` → 改为你创建MySQL用户时设置的实际密码
+2. `你的公网IP` → 改为你的ECS公网IP（如：47.116.222.5）
+3. Antom相关配置 → 如果有实际值就填入，没有可以先保持默认
+
+**验证文件是否创建成功：**
+```bash
+cat .env.production
 ```
 
 #### 4.3.2 修改Prisma配置（SQLite改为MySQL）
@@ -469,12 +489,17 @@ npm install mysql2
 # 生成Prisma Client
 npx prisma generate
 
-# 执行数据库迁移
-npx prisma migrate deploy
+# 创建数据库表结构（首次部署）
+npx prisma db push
 
 # 构建项目
 npm run build
 ```
+
+**⚠️ 重要说明:**
+- `npx prisma db push` 会根据 schema.prisma 直接创建表结构,适合首次部署
+- 如果已有生产数据需要迁移,请使用 `npx prisma migrate dev --name init` 创建迁移文件后,再使用 `npx prisma migrate deploy`
+- 后续修改 schema.prisma 后,需要重新执行 `npx prisma db push` 或使用迁移命令
 
 ### 4.4 部署前端
 
@@ -573,14 +598,16 @@ server {
     root /var/www/mini-shopify/frontend-dist;
     index index.html;
 
+    # 静态资源缓存（必须放在 location / 之前）
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        root /var/www/mini-shopify/frontend-dist;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 前端路由（SPA应用）
     location / {
         try_files $uri $uri/ /index.html;
-        
-        # 静态资源缓存
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
     }
 
     # API代理
@@ -842,7 +869,7 @@ git pull origin main
 cd packages/backend
 npm install
 npx prisma generate
-npx prisma migrate deploy
+npx prisma db push
 npm run build
 
 # 更新前端

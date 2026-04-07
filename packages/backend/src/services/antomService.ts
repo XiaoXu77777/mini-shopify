@@ -391,7 +391,8 @@ export const antomService = {
     kybData?: Record<string, unknown>;
     error?: string;
   }> {
-    if (config.mockMode) {
+    //测试账号没那么多wf账号，都走mock
+    if (1) {
       // Mock KYB data for demo
       return {
         success: true,
