@@ -14,7 +14,7 @@ export const config = {
     baseUrl: process.env.ANTOM_BASE_URL || 'https://open-sea-global.alipay.com',
     agentToken: process.env.ANTOM_AGENT_TOKEN || '',
     parentMerchantId: process.env.PARENT_MERCHANT_ID || '2188120041577055',
-    defaultSettlementCurrency: process.env.DEFAULT_SETTLEMENT_CURRENCY || 'SGD',
+    defaultSettlementCurrency: process.env.DEFAULT_SETTLEMENT_CURRENCY || 'HKD',
     sandbox: process.env.ANTOM_SANDBOX !== 'false', // 默认 true，生产环境需显式设为 false
   },
 

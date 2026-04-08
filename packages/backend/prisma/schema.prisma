@@ -19,7 +19,7 @@ model Merchant {
   riskReasonCodes       String?
   registrationRequestId String?
   offboardingRequestId  String?
-  settlementCurrency    String   @default("SGD")
+  settlementCurrency    String   @default("HKD")
   status                String   @default("ACTIVE")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

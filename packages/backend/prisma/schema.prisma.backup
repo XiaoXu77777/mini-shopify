@@ -25,7 +25,7 @@ model Merchant {
   riskReasonCodes       String?  // JSON string
   registrationRequestId String?
   offboardingRequestId  String?  // separate from registration per Antom spec
-  settlementCurrency    String   @default("SGD")
+  settlementCurrency    String   @default("HKD")
   status                String   @default("ACTIVE")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
