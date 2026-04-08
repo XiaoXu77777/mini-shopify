@@ -1,6 +1,6 @@
 import { config } from '../utils/config';
 import { signRequest, verifySignature, buildSignatureHeader, parseSignatureHeader } from '../utils/crypto';
-import type { AntomResponse, AntomRegisterRequest, AntomInquireRequest, AntomOffboardRequest } from '../types';
+import type { AntomResponse, AntomRegisterRequest, AntomInquireRequest, AntomOffboardRequest, AntomStore } from '../types';
 
 // API paths (production format, sandbox prefix will be added dynamically)
 const REGISTER_PATH = '/ams/api/v1/merchants/register';
@@ -136,6 +136,9 @@ interface RegisterData {
     merchantBrandName?: string | null;
     contactType?: string | null;
     contactInfo?: string | null;
+    // wfKycData contains the full KYB response with nested structures
+    // (stores, entityAssociations with individual/company, certificates with fileList, etc.)
+    wfKycData?: string | null;
   } | null;
   entityAssociations?: {
     associationType: string;
@@ -152,10 +155,22 @@ interface RegisterData {
 
 /**
  * Build the nested Antom register request body from flat DB data.
+ * Uses wfKycData (the full KYB response) for rich nested structures like
+ * stores, entityAssociations (INDIVIDUAL/COMPANY), certificates with fileList, etc.
  */
 function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
   const kyc = data.kycInfo;
   const { parentMerchantId } = config.antom;
+
+  // Parse wfKycData if available (contains the full KYB response with nested structures)
+  let wfKyc: Record<string, unknown> | null = null;
+  if (kyc?.wfKycData) {
+    try {
+      wfKyc = typeof kyc.wfKycData === 'string' ? JSON.parse(kyc.wfKycData) : kyc.wfKycData;
+    } catch {
+      console.warn('[Antom] Failed to parse wfKycData, ignoring rich structures');
+    }
+  }
 
   // Build company object
   const company: AntomRegisterRequest['merchant']['company'] = {
@@ -173,8 +188,30 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
     },
   };
 
-  // Add certificate if present
-  if (kyc?.certificateNo || kyc?.certificateType) {
+  // Add incorporationDate and vatNo from wfKycData
+  if (wfKyc?.incorporationDate) {
+    company.incorporationDate = String(wfKyc.incorporationDate);
+  }
+  if (wfKyc?.vatNo) {
+    company.vatNo = String(wfKyc.vatNo);
+  }
+
+  // Add certificates with fileList from wfKycData if available, otherwise fallback to flat fields
+  if (wfKyc?.certificates && Array.isArray(wfKyc.certificates)) {
+    company.certificates = (wfKyc.certificates as Record<string, unknown>[]).map((cert) => ({
+      certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+      certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+      fileList: Array.isArray(cert.fileList)
+        ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
+            fileName: String(f.fileName || ''),
+            fileUrl: String(f.fileUrl || ''),
+          }))
+        : undefined,
+      registrationCertificate: cert.registrationCertificate != null
+        ? Boolean(cert.registrationCertificate)
+        : undefined,
+    }));
+  } else if (kyc?.certificateNo || kyc?.certificateType) {
     company.certificates = [
       {
         certificateNo: kyc?.certificateNo || undefined,
@@ -208,26 +245,136 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
     businessInfo.websites = [{ type: 'COMMON', url: kyc.websiteUrl }];
   }
 
-  // Build entityAssociations
-  const entityAssociations = data.entityAssociations?.map((ea) => ({
-    associationType: ea.associationType,
-    legalEntityType: 'INDIVIDUAL' as const,
-    shareholdingRatio: ea.shareholdingRatio ? parseFloat(ea.shareholdingRatio) : undefined,
-    individual: {
-      name: {
-        firstName: ea.firstName || undefined,
-        lastName: ea.lastName || undefined,
-        fullName: ea.fullName || undefined,
-      },
-      dateOfBirth: ea.dateOfBirth || undefined,
-      certificates: ea.idNo
-        ? [{ certificateNo: ea.idNo, certificateType: ea.idType || undefined }]
-        : undefined,
-    },
-  }));
+  // Build entityAssociations from wfKycData (supports INDIVIDUAL and COMPANY types)
+  let entityAssociations: AntomRegisterRequest['merchant']['entityAssociations'] | undefined;
 
-  // Build settlementInfoList (differs by WF account presence)
-  const settlementInfoList: AntomRegisterRequest['merchant']['settlementInfoList'] = data.merchant.wfAccountId
+  if (wfKyc?.entityAssociations && Array.isArray(wfKyc.entityAssociations)) {
+    entityAssociations = (wfKyc.entityAssociations as Record<string, unknown>[]).map((ea) => {
+      const legalEntityType = String(ea.legalEntityType || 'INDIVIDUAL');
+      const assoc: AntomRegisterRequest['merchant']['entityAssociations'] extends (infer T)[] | undefined ? T : never = {
+        associationType: String(ea.associationType || ''),
+        legalEntityType,
+      };
+
+      if (legalEntityType === 'INDIVIDUAL' && ea.individual) {
+        const ind = ea.individual as Record<string, unknown>;
+        assoc.individual = {
+          name: ind.name
+            ? {
+                firstName: (ind.name as Record<string, unknown>).firstName
+                  ? String((ind.name as Record<string, unknown>).firstName)
+                  : undefined,
+                lastName: (ind.name as Record<string, unknown>).lastName
+                  ? String((ind.name as Record<string, unknown>).lastName)
+                  : undefined,
+                fullName: (ind.name as Record<string, unknown>).fullName
+                  ? String((ind.name as Record<string, unknown>).fullName)
+                  : undefined,
+              }
+            : { fullName: undefined },
+          nationality: ind.nationality ? String(ind.nationality) : undefined,
+          dateOfBirth: ind.dateOfBirth ? String(ind.dateOfBirth) : undefined,
+          certificates: Array.isArray(ind.certificates)
+            ? (ind.certificates as Record<string, unknown>[]).map((cert) => ({
+                certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+                certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+                fileList: Array.isArray(cert.fileList)
+                  ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
+                      fileName: String(f.fileName || ''),
+                      fileUrl: String(f.fileUrl || ''),
+                    }))
+                  : undefined,
+                registrationCertificate: cert.registrationCertificate != null
+                  ? Boolean(cert.registrationCertificate)
+                  : undefined,
+              }))
+            : undefined,
+        };
+      } else if (legalEntityType === 'COMPANY' && ea.company) {
+        const comp = ea.company as Record<string, unknown>;
+        assoc.company = {
+          legalName: comp.legalName ? String(comp.legalName) : undefined,
+          companyType: comp.companyType ? String(comp.companyType) : undefined,
+          certificates: Array.isArray(comp.certificates)
+            ? (comp.certificates as Record<string, unknown>[]).map((cert) => ({
+                certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+                certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+                fileList: Array.isArray(cert.fileList)
+                  ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
+                      fileName: String(f.fileName || ''),
+                      fileUrl: String(f.fileUrl || ''),
+                    }))
+                  : undefined,
+                registrationCertificate: cert.registrationCertificate != null
+                  ? Boolean(cert.registrationCertificate)
+                  : undefined,
+              }))
+            : undefined,
+        };
+      }
+
+      return assoc;
+    });
+  } else if (data.entityAssociations && data.entityAssociations.length > 0) {
+    // Fallback to flat DB entity associations (legacy path)
+    entityAssociations = data.entityAssociations.map((ea) => ({
+      associationType: ea.associationType,
+      legalEntityType: 'INDIVIDUAL' as const,
+      shareholdingRatio: ea.shareholdingRatio ? parseFloat(ea.shareholdingRatio) : undefined,
+      individual: {
+        name: {
+          firstName: ea.firstName || undefined,
+          lastName: ea.lastName || undefined,
+          fullName: ea.fullName || undefined,
+        },
+        dateOfBirth: ea.dateOfBirth || undefined,
+        certificates: ea.idNo
+          ? [{ certificateNo: ea.idNo, certificateType: ea.idType || undefined }]
+          : undefined,
+      },
+    }));
+  }
+
+  // Build stores from wfKycData
+  let stores: AntomRegisterRequest['merchant']['stores'] | undefined;
+  if (wfKyc?.stores && Array.isArray(wfKyc.stores)) {
+    stores = (wfKyc.stores as Record<string, unknown>[]).map((store) => {
+      const s: AntomStore = {
+        name: store.name ? String(store.name) : undefined,
+        referenceStoreId: store.referenceStoreId ? String(store.referenceStoreId) : undefined,
+        region: store.region ? String(store.region) : undefined,
+        mcc: store.mcc ? String(store.mcc) : undefined,
+      };
+
+      if (store.address && typeof store.address === 'object') {
+        const addr = store.address as Record<string, unknown>;
+        s.address = {
+          address1: addr.address1 ? String(addr.address1) : undefined,
+          address2: addr.address2 ? String(addr.address2) : undefined,
+          city: addr.city ? String(addr.city) : undefined,
+          region: addr.region ? String(addr.region) : undefined,
+          state: addr.state ? String(addr.state) : undefined,
+        };
+      }
+
+      if (Array.isArray(store.attachments)) {
+        s.attachments = (store.attachments as Record<string, unknown>[]).map((att) => ({
+          attachmentType: String(att.attachmentType || ''),
+          fileList: Array.isArray(att.fileList)
+            ? (att.fileList as Record<string, unknown>[]).map((f) => ({
+                fileName: String(f.fileName || ''),
+                fileUrl: String(f.fileUrl || ''),
+              }))
+            : [],
+        }));
+      }
+
+      return s;
+    });
+  }
+
+  // Build settlementInfoList (top-level, differs by WF account presence)
+  const settlementInfoList: AntomRegisterRequest['settlementInfoList'] = data.merchant.wfAccountId
     ? [
         {
           settlementAccountType: 'WORLD_FIRST_ACCOUNT',
@@ -237,25 +384,27 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
       ]
     : [{ settlementCurrency: data.merchant.settlementCurrency }];
 
-  // Build paymentMethodOpenRequests
-  const paymentMethodOpenRequests = data.paymentMethodTypes.map((pmType) => ({
+  // Build paymentMethodActivationRequests
+  const paymentMethodActivationRequests = data.paymentMethodTypes.map((pmType) => ({
     paymentMethodType: pmType,
     productCodes: ['CASHIER_PAYMENT'],
   }));
 
   return {
     registrationRequestId: data.registrationRequestId,
+    partnerId: parentMerchantId,
     merchant: {
       loginId: data.merchant.email,
       legalEntityType: 'COMPANY',
-      parentMerchantId,
+      integrationPartnerId: parentMerchantId,
       referenceMerchantId: data.merchant.referenceMerchantId,
       businessInfo,
       company,
       entityAssociations: entityAssociations && entityAssociations.length > 0 ? entityAssociations : undefined,
-      settlementInfoList,
+      stores: stores && stores.length > 0 ? stores : undefined,
     },
-    paymentMethodOpenRequests,
+    settlementInfoList,
+    paymentMethodActivationRequests,
   };
 }
 
