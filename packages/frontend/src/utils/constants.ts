@@ -1,16 +1,16 @@
 export const PAYMENT_METHOD_OPTIONS = [
-  { label: 'Visa', value: 'Visa' },
-  { label: 'Mastercard', value: 'Mastercard' },
-  { label: 'Discover', value: 'Discover' },
+  { label: 'Visa', value: 'VISA' },
+  { label: 'Mastercard', value: 'MASTERCARD' },
+  { label: 'Discover', value: 'DISCOVER' },
   { label: 'JCB', value: 'JCB' },
-  { label: 'Diners', value: 'Diners' },
-  { label: 'GooglePay', value: 'GooglePay' },
-  { label: 'ApplePay', value: 'ApplePay' },
-  { label: 'AlipayHK', value: 'AlipayHK' },
-  { label: 'Naver Pay', value: 'Naver Pay' },
-  { label: 'Kakao Pay', value: 'Kakao Pay' },
-  { label: 'Toss Pay', value: 'Toss Pay' },
-  { label: 'PayNow', value: 'PayNow' },
+  { label: 'Diners', value: 'DINERS' },
+  { label: 'Google Pay', value: 'GOOGLEPAY' },
+  { label: 'Apple Pay', value: 'APPLEPAY' },
+  { label: 'AlipayHK', value: 'ALIPAY_HK' },
+  { label: 'NAVER Pay', value: 'NAVER_PAY' },
+  { label: 'Kakao Pay', value: 'KAKAO_PAY' },
+  { label: 'Toss Pay', value: 'TOSS_PAY' },
+  { label: 'PayNow', value: 'PAYNOW' },
 ];
 
 export const ALL_PAYMENT_METHOD_TYPES = PAYMENT_METHOD_OPTIONS.map((o) => o.value);

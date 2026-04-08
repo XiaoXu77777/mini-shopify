@@ -292,7 +292,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
 
     // Step 4: Register with all payment methods
     currentStep = 'register';
-    const paymentMethodTypes = ['Visa', 'Mastercard', 'Discover', 'JCB', 'Diners', 'GooglePay', 'ApplePay', 'AlipayHK', 'Naver Pay', 'Kakao Pay', 'Toss Pay', 'PayNow'];
+    const paymentMethodTypes = ['VISA', 'MASTERCARD', 'DISCOVER', 'JCB', 'DINERS', 'GOOGLEPAY', 'APPLEPAY', 'ALIPAY_HK', 'NAVER_PAY', 'KAKAO_PAY', 'TOSS_PAY', 'PAYNOW'];
     const { registrationRequestId } = await merchantService.register(id, paymentMethodTypes);
 
     // Reload merchant to get fresh data
