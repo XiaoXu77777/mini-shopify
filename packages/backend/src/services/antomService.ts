@@ -564,23 +564,40 @@ export const antomService = {
           // Company info
           legalName: 'Mock Company Limited',
           companyType: 'ENTERPRISE',
+          incorporationDate: '2011-12-03+01:00',
+          vatNo: '123456',
+          // Certificates with fileList (nested structure)
+          certificates: [
+            {
+              certificateNo: '91310000MA1FL5XX0X',
+              certificateType: 'ENTERPRISE_REGISTRATION',
+              fileList: [
+                {
+                  fileName: 'business_license.jpeg',
+                  fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                },
+              ],
+              registrationCertificate: true,
+            },
+          ],
+          // Also keep flat fields for KycInfo DB storage
           certificateType: 'ENTERPRISE_REGISTRATION',
           certificateNo: '91310000MA1FL5XX0X',
           branchName: 'Headquarters',
           companyUnit: 'HEADQUARTERS',
           // Registered address
-          addressRegion: 'CN',
-          addressState: 'Shanghai',
-          addressCity: 'Shanghai',
-          address1: '999 Pudong Avenue',
+          addressRegion: 'SG',
+          addressState: 'Singapore',
+          addressCity: 'Singapore',
+          address1: '123 Mock Street',
           address2: 'Tower A, Floor 15',
           zipCode: '200120',
           // Business info
           appName: 'Mock Online Store',
           merchantBrandName: 'MockBrand',
-          mcc: '5732',
-          doingBusinessAs: 'Mock E-Commerce',
-          websiteUrl: 'https://mock-store.example.com',
+          mcc: '5812',
+          doingBusinessAs: 'MockCaféTopPlaza',
+          websiteUrl: 'https://order.ds.alipayplus.com',
           englishName: 'Mock Company Ltd.',
           serviceDescription: 'Online retail and e-commerce services',
           // Contact
@@ -591,23 +608,105 @@ export const antomService = {
           legalRepIdType: 'ID_CARD',
           legalRepIdNo: '310101199203055678',
           legalRepDob: '1992-03-05',
-          // Entity associations (directors/UBOs)
+          // Entity associations with nested individual/company structures
           entityAssociations: [
             {
               associationType: 'UBO',
-              fullName: '李四',
-              shareholdingRatio: '60',
-              idType: 'ID_CARD',
-              idNo: '310101199203055678',
-              dateOfBirth: '1992-03-05',
+              legalEntityType: 'INDIVIDUAL',
+              individual: {
+                name: { fullName: 'NGCHUNKONG' },
+                nationality: 'SG',
+                certificates: [
+                  {
+                    certificateNo: 'S8413692A',
+                    certificateType: 'ID_CARD',
+                    fileList: [
+                      {
+                        fileName: 'ubo_id_card.jpeg',
+                        fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                      },
+                    ],
+                    registrationCertificate: false,
+                  },
+                ],
+              },
             },
             {
-              associationType: 'DIRECTOR',
-              fullName: '王五',
-              shareholdingRatio: '40',
-              idType: 'PASSPORT',
-              idNo: 'E12345678',
-              dateOfBirth: '1988-08-15',
+              associationType: 'BOARD_MEMBER',
+              legalEntityType: 'INDIVIDUAL',
+              individual: {
+                name: { fullName: 'NGCHUNKONG' },
+                nationality: 'SG',
+                certificates: [
+                  {
+                    certificateNo: 'S8413692A',
+                    certificateType: 'ID_CARD',
+                    fileList: [
+                      {
+                        fileName: 'director_id_card.jpeg',
+                        fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                      },
+                    ],
+                    registrationCertificate: false,
+                  },
+                ],
+              },
+            },
+            {
+              associationType: 'HOLDING_COMPANY',
+              legalEntityType: 'COMPANY',
+              company: {
+                legalName: 'Mock Holding Ltd.',
+                companyType: 'ENTERPRISE',
+                certificates: [
+                  {
+                    certificateNo: 'T09LL0001B',
+                    certificateType: 'ENTERPRISE_REGISTRATION',
+                    fileList: [
+                      {
+                        fileName: 'holding_company_cert.jpeg',
+                        fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                      },
+                    ],
+                    registrationCertificate: false,
+                  },
+                ],
+              },
+            },
+          ],
+          // Stores with attachments
+          stores: [
+            {
+              name: 'MockCaféTopPlaza',
+              referenceStoreId: '202504109204091680138064',
+              region: 'SG',
+              mcc: '5812',
+              address: {
+                address1: '123 Mock Street',
+                city: 'Singapore',
+                region: 'SG',
+                state: 'Singapore',
+              },
+              attachments: [
+                {
+                  attachmentType: 'SHOP_DOOR_HEAD_PIC',
+                  fileList: [
+                    {
+                      fileName: 'shop_door.jpeg',
+                      fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                    },
+                  ],
+                },
+                {
+                  attachmentType: 'SHOP_INSIDE_PIC',
+                  fileList: [
+                    {
+                      fileName: 'shop_inside.jpeg',
+                      fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
