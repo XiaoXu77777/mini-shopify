@@ -3,10 +3,10 @@ import { signRequest, verifySignature, buildSignatureHeader, parseSignatureHeade
 import type { AntomResponse, AntomRegisterRequest, AntomInquireRequest, AntomOffboardRequest, AntomStore } from '../types';
 
 // API paths (production format, sandbox prefix will be added dynamically)
-const REGISTER_PATH = '/ams/api/v1/merchants/register';
-const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchants/inquiryRegistration';
-const OFFBOARD_PATH = '/ams/api/v1/merchants/offboard';
-const DEACTIVATE_PATH = '/ams/api/v1/merchants/deactivate';
+const REGISTER_PATH = '/ams/api/v1/merchant/register';
+const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchant/inquiryRegistration';
+const OFFBOARD_PATH = '/ams/api/v1/merchant/offboard';
+const DEACTIVATE_PATH = '/ams/api/v1/merchant/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';
 
 /**
@@ -28,7 +28,7 @@ interface AntomRequestOptions {
 async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse> {
   const { path, body } = options;
   const requestBody = JSON.stringify(body);
-  const requestTime = Date.now().toString();
+  const requestTime = new Date().toISOString().replace('Z', '+00:00');
   const { clientId, privateKey, publicKey, baseUrl, agentToken } = config.antom;
 
   // Resolve actual URL path (with sandbox prefix if needed)
@@ -43,7 +43,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   const url = `${baseUrl}${actualPath}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=UTF-8',
-    'Client-Id': clientId,
+    'client-id': clientId,
     'Request-Time': requestTime,
     'Signature': signatureHeader,
   };

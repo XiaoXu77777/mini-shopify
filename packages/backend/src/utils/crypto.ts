@@ -106,7 +106,7 @@ export function parseSignatureHeader(header: string): {
  * Example: 'algorithm=RSA256, keyVersion=1, signature=SVCvBbh5Evi...'
  */
 export function buildSignatureHeader(generatedSignature: string, keyVersion = '1'): string {
-  return `algorithm=RSA256, keyVersion=${keyVersion}, signature=${generatedSignature}`;
+  return `algorithm=RSA256,keyVersion=${keyVersion},signature=${generatedSignature}`;
 }
 
 /**
