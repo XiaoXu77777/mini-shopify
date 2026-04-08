@@ -3,8 +3,21 @@ import crypto from 'crypto';
 /**
  * Sign a request to Antom API.
  *
- * content_to_be_signed = "POST <httpUri>\n<clientId>.<requestTime>.<requestBody>"
- * signature = urlEncode(base64Encode(sha256withRSA(content, privateKey)))
+ * Step 1: Construct content_to_be_signed
+ *   Syntax: "POST <http-uri>\n<client-id>.<request-time>.<request-body>"
+ *   Example:
+ *     POST /ams/api/v1/payments/pay
+ *     SANDBOX_5X00000000000000.1685599933871.{"env":...}
+ *
+ * Step 2: Generate the signature
+ *   generated_signature = urlEncode(base64Encode(sha256withRSA(content_to_be_signed, privateKey)))
+ *
+ * @param httpUri      domain part excluded, e.g. /ams/api/v1/payments/pay
+ * @param clientId     e.g. SANDBOX_5X00000000000000
+ * @param requestTime  timestamp in milliseconds, e.g. 1685599933871
+ * @param requestBody  JSON request body string
+ * @param privateKeyBase64  Base64-encoded PKCS#8 private key
+ * @returns URL-encoded signature string
  */
 export function signRequest(
   httpUri: string,
@@ -13,15 +26,20 @@ export function signRequest(
   requestBody: string,
   privateKeyBase64: string
 ): string {
+  // Step 1: Construct content_to_be_signed
+  // Format: "POST <http-uri>\n<client-id>.<request-time>.<request-body>"
   const contentToSign = `POST ${httpUri}\n${clientId}.${requestTime}.${requestBody}`;
 
+  // Step 2: sha256withRSA -> base64Encode -> urlEncode
+  const privateKeyPem = formatPrivateKey(privateKeyBase64);
   const signer = crypto.createSign('SHA256');
   signer.update(contentToSign, 'utf8');
 
-  const privateKeyPem = formatPrivateKey(privateKeyBase64);
-  const signature = signer.sign(privateKeyPem, 'base64');
+  // base64Encode(sha256withRSA(content_to_be_signed, privateKey))
+  const base64Signature = signer.sign(privateKeyPem, 'base64');
 
-  return encodeURIComponent(signature);
+  // urlEncode(base64EncodedSignature)
+  return encodeURIComponent(base64Signature);
 }
 
 /**
@@ -83,7 +101,9 @@ export function parseSignatureHeader(header: string): {
 }
 
 /**
- * Build the Signature header value for outgoing requests.
+ * Step 3: Build the Signature header value for outgoing requests.
+ * Syntax: 'algorithm=<algorithm>, keyVersion=<key-version>, signature=<generatedSignature>'
+ * Example: 'algorithm=RSA256, keyVersion=1, signature=SVCvBbh5Evi...'
  */
 export function buildSignatureHeader(generatedSignature: string, keyVersion = '1'): string {
   return `algorithm=RSA256, keyVersion=${keyVersion}, signature=${generatedSignature}`;
