@@ -180,6 +180,19 @@ router.post('/:id/register', async (req: Request, res: Response) => {
       paymentMethodTypes,
     });
 
+    // Return response (use resultInfo if available, fallback to result)
+    const resultInfo = antomResponse.resultInfo || antomResponse.result;
+    const resultStatus = resultInfo?.resultStatus;
+
+    if (resultStatus === 'F') {
+      res.status(400).json({
+        registrationRequestId,
+        resultInfo,
+        error: resultInfo?.resultMessage || 'Registration failed at Antom',
+      });
+      return;
+    }
+
     // In mock mode, schedule auto notifications
     if (config.mockMode) {
       mockService.scheduleRegisterNotifications(
@@ -189,8 +202,6 @@ router.post('/:id/register', async (req: Request, res: Response) => {
       );
     }
 
-    // Return response (use resultInfo if available, fallback to result)
-    const resultInfo = antomResponse.resultInfo || antomResponse.result;
     res.json({ registrationRequestId, resultInfo });
   } catch (err) {
     console.error('[Merchant] Register error:', err);
@@ -299,6 +310,20 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
 
     console.log('[Merchant] Antom register response:', JSON.stringify(antomResponse, null, 2));
 
+    // Check if Antom API returned a failure
+    const resultInfo = antomResponse.resultInfo || antomResponse.result;
+    const resultStatus = resultInfo?.resultStatus;
+
+    if (resultStatus === 'F') {
+      res.status(400).json({
+        success: false,
+        registrationRequestId,
+        resultInfo,
+        error: resultInfo?.resultMessage || 'Registration failed at Antom',
+      });
+      return;
+    }
+
     // In mock mode, schedule auto notifications
     if (config.mockMode) {
       mockService.scheduleRegisterNotifications(
@@ -308,7 +333,6 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
       );
     }
 
-    const resultInfo = antomResponse.resultInfo || antomResponse.result;
     res.json({ success: true, registrationRequestId, resultInfo });
   } catch (err) {
     console.error('[Merchant] Setup payments error:', err);

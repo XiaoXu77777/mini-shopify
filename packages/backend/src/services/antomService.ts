@@ -416,23 +416,6 @@ export const antomService = {
   async register(data: RegisterData): Promise<AntomResponse> {
     const requestBody = buildRegisterRequest(data);
 
-    if (config.mockMode) {
-      return {
-        resultInfo: {
-          resultStatus: 'S',
-          resultCode: 'SUCCESS',
-          resultMessage: 'success',
-        },
-        registrationResult: {
-          registrationStatus: 'PROCESSING',
-          registrationRequestId: data.registrationRequestId,
-          loginId: data.merchant.email,
-          parentMerchantId: config.antom.parentMerchantId,
-          referenceMerchantId: data.merchant.referenceMerchantId,
-        },
-      };
-    }
-
     return callWithRetry({
       path: REGISTER_PATH,
       body: requestBody as unknown as Record<string, unknown>,
