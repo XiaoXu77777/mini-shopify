@@ -90,11 +90,9 @@ export function buildSignatureHeader(generatedSignature: string, keyVersion = '1
 }
 
 function formatPrivateKey(base64Key: string): string {
-  const cleaned = base64Key.replace(/\s/g, '');
    return base64Key;
 }
 
 function formatPublicKey(base64Key: string): string {
-  const cleaned = base64Key.replace(/\s/g, '');
   return base64Key;
 }
