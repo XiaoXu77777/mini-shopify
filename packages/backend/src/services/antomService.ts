@@ -56,7 +56,7 @@ async function callAntomApi(options: AntomRequestOptions): Promise<AntomResponse
   console.log(`[Antom] Request headers:`, JSON.stringify(headers, null, 2));
   // Send request
   console.log(`[Antom] >>> ${actualPath} | url=${url} | clientId=${clientId} | requestTime=${requestTime}`);
-  console.log(`[Antom] >>> Request body: ${requestBody.substring(0, 500)}${requestBody.length > 500 ? '...' : ''}`);
+  console.log(`[Antom] >>> Request body: ${requestBody}`);
 
   const response = await fetch(url, {
     method: 'POST',
