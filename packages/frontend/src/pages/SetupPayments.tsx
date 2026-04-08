@@ -54,14 +54,29 @@ export default function SetupPayments() {
         setPhase('done');
         message.success('Shopify Payments setup complete!');
       } else {
+        // API returned 2xx but success=false (shouldn't normally happen)
         updateStep(1, 'error');
         setErrorMessage(result.data.error || 'Failed to setup payments');
         setPhase('error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Setup payments error:', err);
-      updateStep(1, 'error');
-      setErrorMessage('Failed to setup payments. Please try again.');
+
+      // Extract error details from the response
+      const axiosErr = err as { response?: { data?: { failedStep?: string; error?: string } } };
+      const failedStep = axiosErr?.response?.data?.failedStep;
+      const errorMsg = axiosErr?.response?.data?.error || 'Failed to setup payments. Please try again.';
+
+      if (failedStep === 'register') {
+        // KYB query succeeded, registration failed
+        updateStep(1, 'finish');
+        updateStep(2, 'error');
+      } else {
+        // KYB query failed or unknown error
+        updateStep(1, 'error');
+      }
+
+      setErrorMessage(errorMsg);
       setPhase('error');
     }
   }, [id, updateStep]);

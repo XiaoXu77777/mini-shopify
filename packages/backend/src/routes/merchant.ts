@@ -233,7 +233,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     // Step 2: Query KYB info from Antom using WF access token
     const kybResult = await antomService.queryKybInfo(accessToken, customerId);
     if (!kybResult.success || !kybResult.kybData) {
-      res.status(400).json({ success: false, error: kybResult.error || 'Failed to query KYB information' });
+      res.status(400).json({ success: false, failedStep: 'queryKyb', error: kybResult.error || 'Failed to query KYB information' });
       return;
     }
 
@@ -317,6 +317,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     if (resultStatus === 'F') {
       res.status(400).json({
         success: false,
+        failedStep: 'register',
         registrationRequestId,
         resultInfo,
         error: resultInfo?.resultMessage || 'Registration failed at Antom',
