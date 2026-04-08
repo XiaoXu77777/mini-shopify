@@ -67,8 +67,8 @@ export default function SetupPayments() {
       const failedStep = axiosErr?.response?.data?.failedStep;
       const errorMsg = axiosErr?.response?.data?.error || 'Failed to setup payments. Please try again.';
 
-      if (failedStep === 'register') {
-        // KYB query succeeded, registration failed
+      if (failedStep === 'register' || failedStep === 'fillKyc') {
+        // KYB query succeeded, failed at KYC fill or registration
         updateStep(1, 'finish');
         updateStep(2, 'error');
       } else {

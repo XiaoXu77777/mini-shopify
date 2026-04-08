@@ -78,9 +78,10 @@ export const merchantApi = {
 
   // Combined WF auth + KYB query + KYC fill + register
   setupPayments(merchantId: string, data: { wfAccountId: string; accessToken: string; customerId: string }) {
-    return api.post<{ success: boolean; registrationRequestId?: string; resultInfo?: { resultStatus: string; resultCode: string }; error?: string }>(
+    return api.post<{ success: boolean; registrationRequestId?: string; failedStep?: string; resultInfo?: { resultStatus: string; resultCode: string }; error?: string }>(
       `/merchants/${merchantId}/setup-payments`,
-      data
+      data,
+      { timeout: 60000 },
     );
   },
 };

@@ -212,6 +212,7 @@ router.post('/:id/register', async (req: Request, res: Response) => {
 // POST /api/merchants/:id/setup-payments - Combined WF auth + KYB query + KYC fill + register
 // This endpoint handles the full flow: query KYB from Antom using WF auth, save KYC, and register
 router.post('/:id/setup-payments', async (req: Request, res: Response) => {
+  let currentStep: 'queryKyb' | 'fillKyc' | 'register' = 'queryKyb';
   try {
     const id = paramStr(req.params.id);
     const { wfAccountId, accessToken, customerId } = req.body;
@@ -238,6 +239,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     }
 
     const kybData = kybResult.kybData;
+    currentStep = 'fillKyc';
 
     // Step 3: Fill KYC info from KYB data + extra fields (Shopify auto-fills, merchant doesn't need to input)
     const kycPayload = {
@@ -289,6 +291,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     }
 
     // Step 4: Register with all payment methods
+    currentStep = 'register';
     const paymentMethodTypes = ['Visa', 'Mastercard', 'Discover', 'JCB', 'Diners', 'GooglePay', 'ApplePay', 'AlipayHK', 'Naver Pay', 'Kakao Pay', 'Toss Pay', 'PayNow'];
     const { registrationRequestId } = await merchantService.register(id, paymentMethodTypes);
 
@@ -349,7 +352,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     res.json({ success: true, registrationRequestId, resultInfo });
   } catch (err) {
     console.error('[Merchant] Setup payments error:', err);
-    res.status(500).json({ success: false, error: 'Failed to setup payments' });
+    res.status(500).json({ success: false, failedStep: currentStep, error: 'Failed to setup payments' });
   }
 });
 
