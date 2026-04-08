@@ -295,18 +295,30 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     // Reload merchant to get fresh data
     const updatedMerchant = await merchantService.getById(id);
 
-    const antomResponse = await antomService.register({
-      registrationRequestId,
-      merchant: {
-        email: merchant.email,
-        referenceMerchantId: merchant.referenceMerchantId || merchant.id,
-        wfAccountId,
-        settlementCurrency: merchant.settlementCurrency,
-      },
-      kycInfo: updatedMerchant?.kycInfo || null,
-      entityAssociations: updatedMerchant?.entityAssociations || [],
-      paymentMethodTypes,
-    });
+    let antomResponse;
+    try {
+      antomResponse = await antomService.register({
+        registrationRequestId,
+        merchant: {
+          email: merchant.email,
+          referenceMerchantId: merchant.referenceMerchantId || merchant.id,
+          wfAccountId,
+          settlementCurrency: merchant.settlementCurrency,
+        },
+        kycInfo: updatedMerchant?.kycInfo || null,
+        entityAssociations: updatedMerchant?.entityAssociations || [],
+        paymentMethodTypes,
+      });
+    } catch (registerErr) {
+      console.error('[Merchant] Antom register call failed:', registerErr);
+      res.status(500).json({
+        success: false,
+        failedStep: 'register',
+        registrationRequestId,
+        error: registerErr instanceof Error ? registerErr.message : 'Failed to call Antom register API',
+      });
+      return;
+    }
 
     console.log('[Merchant] Antom register response:', JSON.stringify(antomResponse, null, 2));
 
