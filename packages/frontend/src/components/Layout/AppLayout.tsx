@@ -75,11 +75,14 @@ export default function AppLayout() {
     ...merchants.map((merchant) => ({
       key: merchant.id,
       label: (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 160 }}>
-          <span>{merchant.shopName}</span>
-          {currentMerchant?.id === merchant.id && (
-            <span style={{ color: '#52c41a' }}>✓</span>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 200, gap: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {merchant.shopName}
+            {currentMerchant?.id === merchant.id && (
+              <span style={{ color: '#52c41a' }}>✓</span>
+            )}
+          </span>
+          <KycStatusTag status={merchant.kycStatus} />
         </div>
       ),
       onClick: () => setCurrentMerchant(merchant),
