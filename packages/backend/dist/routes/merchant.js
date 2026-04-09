@@ -166,12 +166,21 @@ router.post('/:id/register', async (req, res) => {
             entityAssociations: merchant.entityAssociations,
             paymentMethodTypes,
         });
+        // Return response (use resultInfo if available, fallback to result)
+        const resultInfo = antomResponse.resultInfo || antomResponse.result;
+        const resultStatus = resultInfo?.resultStatus;
+        if (resultStatus === 'F') {
+            res.status(400).json({
+                registrationRequestId,
+                resultInfo,
+                error: resultInfo?.resultMessage || 'Registration failed at Antom',
+            });
+            return;
+        }
         // In mock mode, schedule auto notifications
         if (config_1.config.mockMode) {
             mockService_1.mockService.scheduleRegisterNotifications(registrationRequestId, paymentMethodTypes, merchant.referenceMerchantId || merchant.id);
         }
-        // Return response (use resultInfo if available, fallback to result)
-        const resultInfo = antomResponse.resultInfo || antomResponse.result;
         res.json({ registrationRequestId, resultInfo });
     }
     catch (err) {
@@ -182,6 +191,7 @@ router.post('/:id/register', async (req, res) => {
 // POST /api/merchants/:id/setup-payments - Combined WF auth + KYB query + KYC fill + register
 // This endpoint handles the full flow: query KYB from Antom using WF auth, save KYC, and register
 router.post('/:id/setup-payments', async (req, res) => {
+    let currentStep = 'queryKyb';
     try {
         const id = paramStr(req.params.id);
         const { wfAccountId, accessToken, customerId } = req.body;
@@ -199,10 +209,11 @@ router.post('/:id/setup-payments', async (req, res) => {
         // Step 2: Query KYB info from Antom using WF access token
         const kybResult = await antomService_1.antomService.queryKybInfo(accessToken, customerId);
         if (!kybResult.success || !kybResult.kybData) {
-            res.status(400).json({ success: false, error: kybResult.error || 'Failed to query KYB information' });
+            res.status(400).json({ success: false, failedStep: 'queryKyb', error: kybResult.error || 'Failed to query KYB information' });
             return;
         }
         const kybData = kybResult.kybData;
+        currentStep = 'fillKyc';
         // Step 3: Fill KYC info from KYB data + extra fields (Shopify auto-fills, merchant doesn't need to input)
         const kycPayload = {
             // From KYB data
@@ -250,32 +261,59 @@ router.post('/:id/setup-payments', async (req, res) => {
             await merchantService_1.merchantService.upsertEntityAssociations(id, associations);
         }
         // Step 4: Register with all payment methods
-        const paymentMethodTypes = ['Visa', 'Mastercard', 'Discover', 'JCB', 'Diners', 'GooglePay', 'ApplePay', 'AlipayHK', 'Naver Pay', 'Kakao Pay', 'Toss Pay', 'PayNow'];
+        currentStep = 'register';
+        const paymentMethodTypes = ['VISA', 'MASTERCARD', 'DISCOVER', 'JCB', 'DINERS', 'GOOGLEPAY', 'APPLEPAY', 'ALIPAY_HK', 'NAVER_PAY', 'KAKAO_PAY', 'TOSS_PAY', 'PAYNOW'];
         const { registrationRequestId } = await merchantService_1.merchantService.register(id, paymentMethodTypes);
         // Reload merchant to get fresh data
         const updatedMerchant = await merchantService_1.merchantService.getById(id);
-        const antomResponse = await antomService_1.antomService.register({
-            registrationRequestId,
-            merchant: {
-                email: merchant.email,
-                referenceMerchantId: merchant.referenceMerchantId || merchant.id,
-                wfAccountId,
-                settlementCurrency: merchant.settlementCurrency,
-            },
-            kycInfo: updatedMerchant?.kycInfo || null,
-            entityAssociations: updatedMerchant?.entityAssociations || [],
-            paymentMethodTypes,
-        });
+        let antomResponse;
+        try {
+            antomResponse = await antomService_1.antomService.register({
+                registrationRequestId,
+                merchant: {
+                    email: merchant.email,
+                    referenceMerchantId: merchant.referenceMerchantId || merchant.id,
+                    wfAccountId,
+                    settlementCurrency: merchant.settlementCurrency,
+                },
+                kycInfo: updatedMerchant?.kycInfo || null,
+                entityAssociations: updatedMerchant?.entityAssociations || [],
+                paymentMethodTypes,
+            });
+        }
+        catch (registerErr) {
+            console.error('[Merchant] Antom register call failed:', registerErr);
+            res.status(500).json({
+                success: false,
+                failedStep: 'register',
+                registrationRequestId,
+                error: registerErr instanceof Error ? registerErr.message : 'Failed to call Antom register API',
+            });
+            return;
+        }
+        console.log('[Merchant] Antom register response:', JSON.stringify(antomResponse, null, 2));
+        // Check if Antom API returned a failure
+        const resultInfo = antomResponse.resultInfo || antomResponse.result;
+        const resultStatus = resultInfo?.resultStatus;
+        if (resultStatus === 'F') {
+            res.status(400).json({
+                success: false,
+                failedStep: 'register',
+                registrationRequestId,
+                resultInfo,
+                error: resultInfo?.resultMessage || 'Registration failed at Antom',
+            });
+            return;
+        }
         // In mock mode, schedule auto notifications
         if (config_1.config.mockMode) {
             mockService_1.mockService.scheduleRegisterNotifications(registrationRequestId, paymentMethodTypes, merchant.referenceMerchantId || merchant.id);
         }
-        const resultInfo = antomResponse.resultInfo || antomResponse.result;
         res.json({ success: true, registrationRequestId, resultInfo });
     }
     catch (err) {
         console.error('[Merchant] Setup payments error:', err);
-        res.status(500).json({ success: false, error: 'Failed to setup payments' });
+        res.status(500).json({ success: false, failedStep: currentStep, error: 'Failed to setup payments' });
     }
 });
 // GET /api/merchants/:id/registration-status - Query registration status (guide section 4.2)

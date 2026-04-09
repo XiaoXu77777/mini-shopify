@@ -3,51 +3,66 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.antomService = void 0;
 const config_1 = require("../utils/config");
 const crypto_1 = require("../utils/crypto");
-const REGISTER_PATH = '/ams/api/v1/isv/register';
-const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/isv/inquiry_register';
-const OFFBOARD_PATH = '/ams/api/v1/isv/offboard';
-const DEACTIVATE_PATH = '/ams/api/v1/isv/deactivate';
+// API paths (production format, sandbox prefix will be added dynamically)
+const REGISTER_PATH = '/ams/api/v1/merchant/register';
+const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchant/inquiryRegistration';
+const OFFBOARD_PATH = '/ams/api/v1/merchant/offboard';
+const DEACTIVATE_PATH = '/ams/api/v1/merchant/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';
+/**
+ * Get the actual API path, inserting /sandbox/ prefix for sandbox environment.
+ * Production: /ams/api/v1/merchants/register
+ * Sandbox:    /ams/sandbox/api/v1/merchants/register
+ */
+function getApiPath(path) {
+    if (!config_1.config.antom.sandbox)
+        return path;
+    // Insert 'sandbox' after '/ams/'
+    return path.replace('/ams/', '/ams/sandbox/');
+}
 async function callAntomApi(options) {
     const { path, body } = options;
     const requestBody = JSON.stringify(body);
-    const requestTime = Date.now().toString();
+    const requestTime = new Date().toISOString().replace('Z', '+00:00');
     const { clientId, privateKey, publicKey, baseUrl, agentToken } = config_1.config.antom;
-    // Generate signature
+    // Resolve actual URL path (with sandbox prefix if needed)
+    // Note: sandbox prefix is only for URL routing, signature uses the original path
+    const actualPath = getApiPath(path);
+    // Generate signature (use original path without sandbox prefix)
     const signature = (0, crypto_1.signRequest)(path, clientId, requestTime, requestBody, privateKey);
     const signatureHeader = (0, crypto_1.buildSignatureHeader)(signature);
     // Build request
-    const url = `${baseUrl}${path}`;
+    const url = `${baseUrl}${actualPath}`;
     const headers = {
         'Content-Type': 'application/json; charset=UTF-8',
-        'Client-Id': clientId,
+        'client-id': clientId,
         'Request-Time': requestTime,
         'Signature': signatureHeader,
     };
     if (agentToken) {
         headers['agent-token'] = agentToken;
     }
+    // Print headers for debugging
+    console.log(`[Antom] Request headers:`, JSON.stringify(headers, null, 2));
     // Send request
+    console.log(`[Antom] >>> ${actualPath} | url=${url} | clientId=${clientId} | requestTime=${requestTime}`);
+    console.log(`[Antom] >>> Request body: ${requestBody}`);
     const response = await fetch(url, {
         method: 'POST',
         headers,
         body: requestBody,
     });
     const responseBody = await response.text();
-    // Verify response signature
-    const respClientId = response.headers.get('client-id') || clientId;
-    const respTime = response.headers.get('response-time') || '';
-    const respSignature = response.headers.get('signature') || '';
-    if (respSignature && publicKey) {
-        const parsed = (0, crypto_1.parseSignatureHeader)(respSignature);
-        if (parsed) {
-            const isValid = (0, crypto_1.verifySignature)(path, respClientId, respTime, responseBody, parsed.signature, publicKey);
-            if (!isValid) {
-                throw new Error('Antom response signature verification failed');
-            }
-        }
+    console.log(`[Antom] <<< ${actualPath} | HTTP ${response.status} ${response.statusText}`);
+    console.log(`[Antom] <<< Response body: ${responseBody.substring(0, 1000)}${responseBody.length > 1000 ? '...' : ''}`);
+    try {
+        return JSON.parse(responseBody);
     }
-    return JSON.parse(responseBody);
+    catch (e) {
+        console.error(`[Antom] !!! Failed to parse response JSON for ${actualPath}:`, e);
+        console.error(`[Antom] !!! Raw response body: ${responseBody}`);
+        throw new Error(`Antom API response is not valid JSON (HTTP ${response.status}): ${responseBody.substring(0, 200)}`);
+    }
 }
 /**
  * Retry helper for Antom API calls.
@@ -69,10 +84,22 @@ async function callWithRetry(options, maxRetries = 3, baseDelayMs = 1000) {
 }
 /**
  * Build the nested Antom register request body from flat DB data.
+ * Uses wfKycData (the full KYB response) for rich nested structures like
+ * stores, entityAssociations (INDIVIDUAL/COMPANY), certificates with fileList, etc.
  */
 function buildRegisterRequest(data) {
     const kyc = data.kycInfo;
     const { parentMerchantId } = config_1.config.antom;
+    // Parse wfKycData if available (contains the full KYB response with nested structures)
+    let wfKyc = null;
+    if (kyc?.wfKycData) {
+        try {
+            wfKyc = typeof kyc.wfKycData === 'string' ? JSON.parse(kyc.wfKycData) : kyc.wfKycData;
+        }
+        catch {
+            console.warn('[Antom] Failed to parse wfKycData, ignoring rich structures');
+        }
+    }
     // Build company object
     const company = {
         legalName: kyc?.legalName || undefined,
@@ -88,8 +115,30 @@ function buildRegisterRequest(data) {
             zipCode: kyc?.zipCode || undefined,
         },
     };
-    // Add certificate if present
-    if (kyc?.certificateNo || kyc?.certificateType) {
+    // Add incorporationDate and vatNo from wfKycData
+    if (wfKyc?.incorporationDate) {
+        company.incorporationDate = String(wfKyc.incorporationDate);
+    }
+    if (wfKyc?.vatNo) {
+        company.vatNo = String(wfKyc.vatNo);
+    }
+    // Add certificates with fileList from wfKycData if available, otherwise fallback to flat fields
+    if (wfKyc?.certificates && Array.isArray(wfKyc.certificates)) {
+        company.certificates = wfKyc.certificates.map((cert) => ({
+            certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+            certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+            fileList: Array.isArray(cert.fileList)
+                ? cert.fileList.map((f) => ({
+                    fileName: String(f.fileName || ''),
+                    fileUrl: String(f.fileUrl || ''),
+                }))
+                : undefined,
+            registrationCertificate: cert.registrationCertificate != null
+                ? Boolean(cert.registrationCertificate)
+                : undefined,
+        }));
+    }
+    else if (kyc?.certificateNo || kyc?.certificateType) {
         company.certificates = [
             {
                 certificateNo: kyc?.certificateNo || undefined,
@@ -119,24 +168,129 @@ function buildRegisterRequest(data) {
     if (kyc?.websiteUrl) {
         businessInfo.websites = [{ type: 'COMMON', url: kyc.websiteUrl }];
     }
-    // Build entityAssociations
-    const entityAssociations = data.entityAssociations?.map((ea) => ({
-        associationType: ea.associationType,
-        legalEntityType: 'INDIVIDUAL',
-        shareholdingRatio: ea.shareholdingRatio ? parseFloat(ea.shareholdingRatio) : undefined,
-        individual: {
-            name: {
-                firstName: ea.firstName || undefined,
-                lastName: ea.lastName || undefined,
-                fullName: ea.fullName || undefined,
+    // Build entityAssociations from wfKycData (supports INDIVIDUAL and COMPANY types)
+    let entityAssociations;
+    if (wfKyc?.entityAssociations && Array.isArray(wfKyc.entityAssociations)) {
+        entityAssociations = wfKyc.entityAssociations.map((ea) => {
+            const legalEntityType = String(ea.legalEntityType || 'INDIVIDUAL');
+            const assoc = {
+                associationType: String(ea.associationType || ''),
+                legalEntityType,
+            };
+            if (legalEntityType === 'INDIVIDUAL' && ea.individual) {
+                const ind = ea.individual;
+                assoc.individual = {
+                    name: ind.name
+                        ? {
+                            firstName: ind.name.firstName
+                                ? String(ind.name.firstName)
+                                : undefined,
+                            lastName: ind.name.lastName
+                                ? String(ind.name.lastName)
+                                : undefined,
+                            fullName: ind.name.fullName
+                                ? String(ind.name.fullName)
+                                : undefined,
+                        }
+                        : { fullName: undefined },
+                    nationality: ind.nationality ? String(ind.nationality) : undefined,
+                    dateOfBirth: ind.dateOfBirth ? String(ind.dateOfBirth) : undefined,
+                    certificates: Array.isArray(ind.certificates)
+                        ? ind.certificates.map((cert) => ({
+                            certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+                            certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+                            fileList: Array.isArray(cert.fileList)
+                                ? cert.fileList.map((f) => ({
+                                    fileName: String(f.fileName || ''),
+                                    fileUrl: String(f.fileUrl || ''),
+                                }))
+                                : undefined,
+                            registrationCertificate: cert.registrationCertificate != null
+                                ? Boolean(cert.registrationCertificate)
+                                : undefined,
+                        }))
+                        : undefined,
+                };
+            }
+            else if (legalEntityType === 'COMPANY' && ea.company) {
+                const comp = ea.company;
+                assoc.company = {
+                    legalName: comp.legalName ? String(comp.legalName) : undefined,
+                    companyType: comp.companyType ? String(comp.companyType) : undefined,
+                    certificates: Array.isArray(comp.certificates)
+                        ? comp.certificates.map((cert) => ({
+                            certificateNo: cert.certificateNo ? String(cert.certificateNo) : undefined,
+                            certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
+                            fileList: Array.isArray(cert.fileList)
+                                ? cert.fileList.map((f) => ({
+                                    fileName: String(f.fileName || ''),
+                                    fileUrl: String(f.fileUrl || ''),
+                                }))
+                                : undefined,
+                            registrationCertificate: cert.registrationCertificate != null
+                                ? Boolean(cert.registrationCertificate)
+                                : undefined,
+                        }))
+                        : undefined,
+                };
+            }
+            return assoc;
+        });
+    }
+    else if (data.entityAssociations && data.entityAssociations.length > 0) {
+        // Fallback to flat DB entity associations (legacy path)
+        entityAssociations = data.entityAssociations.map((ea) => ({
+            associationType: ea.associationType,
+            legalEntityType: 'INDIVIDUAL',
+            shareholdingRatio: ea.shareholdingRatio ? parseFloat(ea.shareholdingRatio) : undefined,
+            individual: {
+                name: {
+                    firstName: ea.firstName || undefined,
+                    lastName: ea.lastName || undefined,
+                    fullName: ea.fullName || undefined,
+                },
+                dateOfBirth: ea.dateOfBirth || undefined,
+                certificates: ea.idNo
+                    ? [{ certificateNo: ea.idNo, certificateType: ea.idType || undefined }]
+                    : undefined,
             },
-            dateOfBirth: ea.dateOfBirth || undefined,
-            certificates: ea.idNo
-                ? [{ certificateNo: ea.idNo, certificateType: ea.idType || undefined }]
-                : undefined,
-        },
-    }));
-    // Build settlementInfoList (differs by WF account presence)
+        }));
+    }
+    // Build stores from wfKycData
+    let stores;
+    if (wfKyc?.stores && Array.isArray(wfKyc.stores)) {
+        stores = wfKyc.stores.map((store) => {
+            const s = {
+                name: store.name ? String(store.name) : undefined,
+                referenceStoreId: store.referenceStoreId ? String(store.referenceStoreId) : undefined,
+                region: store.region ? String(store.region) : undefined,
+                mcc: store.mcc ? String(store.mcc) : undefined,
+            };
+            if (store.address && typeof store.address === 'object') {
+                const addr = store.address;
+                s.address = {
+                    address1: addr.address1 ? String(addr.address1) : undefined,
+                    address2: addr.address2 ? String(addr.address2) : undefined,
+                    city: addr.city ? String(addr.city) : undefined,
+                    region: addr.region ? String(addr.region) : undefined,
+                    state: addr.state ? String(addr.state) : undefined,
+                };
+            }
+            if (Array.isArray(store.attachments)) {
+                s.attachments = store.attachments.map((att) => ({
+                    attachmentType: String(att.attachmentType || ''),
+                    fileList: Array.isArray(att.fileList)
+                        ? att.fileList.map((f) => ({
+                            fileName: String(f.fileName || ''),
+                            fileUrl: String(f.fileUrl || ''),
+                        }))
+                        : [],
+                }));
+            }
+            return s;
+        });
+    }
+    // Build settlementInfoList (top-level, differs by WF account presence)
     const settlementInfoList = data.merchant.wfAccountId
         ? [
             {
@@ -146,24 +300,26 @@ function buildRegisterRequest(data) {
             },
         ]
         : [{ settlementCurrency: data.merchant.settlementCurrency }];
-    // Build paymentMethodOpenRequests
-    const paymentMethodOpenRequests = data.paymentMethodTypes.map((pmType) => ({
+    // Build paymentMethodActivationRequests
+    const paymentMethodActivationRequests = data.paymentMethodTypes.map((pmType) => ({
         paymentMethodType: pmType,
         productCodes: ['CASHIER_PAYMENT'],
     }));
     return {
         registrationRequestId: data.registrationRequestId,
+        partnerId: parentMerchantId,
         merchant: {
             loginId: data.merchant.email,
             legalEntityType: 'COMPANY',
-            parentMerchantId,
+            integrationPartnerId: parentMerchantId,
             referenceMerchantId: data.merchant.referenceMerchantId,
             businessInfo,
             company,
             entityAssociations: entityAssociations && entityAssociations.length > 0 ? entityAssociations : undefined,
-            settlementInfoList,
+            stores: stores && stores.length > 0 ? stores : undefined,
         },
-        paymentMethodOpenRequests,
+        settlementInfoList,
+        paymentMethodActivationRequests,
     };
 }
 exports.antomService = {
@@ -173,22 +329,6 @@ exports.antomService = {
      */
     async register(data) {
         const requestBody = buildRegisterRequest(data);
-        if (config_1.config.mockMode) {
-            return {
-                resultInfo: {
-                    resultStatus: 'S',
-                    resultCode: 'SUCCESS',
-                    resultMessage: 'success',
-                },
-                registrationResult: {
-                    registrationStatus: 'PROCESSING',
-                    registrationRequestId: data.registrationRequestId,
-                    loginId: data.merchant.email,
-                    parentMerchantId: config_1.config.antom.parentMerchantId,
-                    referenceMerchantId: data.merchant.referenceMerchantId,
-                },
-            };
-        }
         return callWithRetry({
             path: REGISTER_PATH,
             body: requestBody,
@@ -288,7 +428,8 @@ exports.antomService = {
      * This is used after user logs in with WorldFirst and authorizes to share KYB info.
      */
     async queryKybInfo(accessToken, customerId) {
-        if (config_1.config.mockMode) {
+        //测试账号没那么多wf账号，都走mock
+        if (1) {
             // Mock KYB data for demo
             return {
                 success: true,
@@ -296,23 +437,40 @@ exports.antomService = {
                     // Company info
                     legalName: 'Mock Company Limited',
                     companyType: 'ENTERPRISE',
+                    incorporationDate: '2011-12-03+01:00',
+                    vatNo: '123456',
+                    // Certificates with fileList (nested structure)
+                    certificates: [
+                        {
+                            certificateNo: '91310000MA1FL5XX0X',
+                            certificateType: 'ENTERPRISE_REGISTRATION',
+                            fileList: [
+                                {
+                                    fileName: 'business_license.jpeg',
+                                    fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                },
+                            ],
+                            registrationCertificate: true,
+                        },
+                    ],
+                    // Also keep flat fields for KycInfo DB storage
                     certificateType: 'ENTERPRISE_REGISTRATION',
                     certificateNo: '91310000MA1FL5XX0X',
                     branchName: 'Headquarters',
                     companyUnit: 'HEADQUARTERS',
                     // Registered address
-                    addressRegion: 'CN',
-                    addressState: 'Shanghai',
-                    addressCity: 'Shanghai',
-                    address1: '999 Pudong Avenue',
+                    addressRegion: 'SG',
+                    addressState: 'Singapore',
+                    addressCity: 'Singapore',
+                    address1: '123 Mock Street',
                     address2: 'Tower A, Floor 15',
                     zipCode: '200120',
                     // Business info
                     appName: 'Mock Online Store',
                     merchantBrandName: 'MockBrand',
-                    mcc: '5732',
-                    doingBusinessAs: 'Mock E-Commerce',
-                    websiteUrl: 'https://mock-store.example.com',
+                    mcc: '5812',
+                    doingBusinessAs: 'MockCaféTopPlaza',
+                    websiteUrl: 'https://order.ds.alipayplus.com',
                     englishName: 'Mock Company Ltd.',
                     serviceDescription: 'Online retail and e-commerce services',
                     // Contact
@@ -323,23 +481,105 @@ exports.antomService = {
                     legalRepIdType: 'ID_CARD',
                     legalRepIdNo: '310101199203055678',
                     legalRepDob: '1992-03-05',
-                    // Entity associations (directors/UBOs)
+                    // Entity associations with nested individual/company structures
                     entityAssociations: [
                         {
                             associationType: 'UBO',
-                            fullName: '李四',
-                            shareholdingRatio: '60',
-                            idType: 'ID_CARD',
-                            idNo: '310101199203055678',
-                            dateOfBirth: '1992-03-05',
+                            legalEntityType: 'INDIVIDUAL',
+                            individual: {
+                                name: { fullName: 'NGCHUNKONG' },
+                                nationality: 'SG',
+                                certificates: [
+                                    {
+                                        certificateNo: 'S8413692A',
+                                        certificateType: 'ID_CARD',
+                                        fileList: [
+                                            {
+                                                fileName: 'ubo_id_card.jpeg',
+                                                fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                            },
+                                        ],
+                                        registrationCertificate: false,
+                                    },
+                                ],
+                            },
                         },
                         {
-                            associationType: 'DIRECTOR',
-                            fullName: '王五',
-                            shareholdingRatio: '40',
-                            idType: 'PASSPORT',
-                            idNo: 'E12345678',
-                            dateOfBirth: '1988-08-15',
+                            associationType: 'BOARD_MEMBER',
+                            legalEntityType: 'INDIVIDUAL',
+                            individual: {
+                                name: { fullName: 'NGCHUNKONG' },
+                                nationality: 'SG',
+                                certificates: [
+                                    {
+                                        certificateNo: 'S8413692A',
+                                        certificateType: 'ID_CARD',
+                                        fileList: [
+                                            {
+                                                fileName: 'director_id_card.jpeg',
+                                                fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                            },
+                                        ],
+                                        registrationCertificate: false,
+                                    },
+                                ],
+                            },
+                        },
+                        {
+                            associationType: 'HOLDING_COMPANY',
+                            legalEntityType: 'COMPANY',
+                            company: {
+                                legalName: 'Mock Holding Ltd.',
+                                companyType: 'ENTERPRISE',
+                                certificates: [
+                                    {
+                                        certificateNo: 'T09LL0001B',
+                                        certificateType: 'ENTERPRISE_REGISTRATION',
+                                        fileList: [
+                                            {
+                                                fileName: 'holding_company_cert.jpeg',
+                                                fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                            },
+                                        ],
+                                        registrationCertificate: false,
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                    // Stores with attachments
+                    stores: [
+                        {
+                            name: 'MockCaféTopPlaza',
+                            referenceStoreId: '202504109204091680138064',
+                            region: 'SG',
+                            mcc: '5812',
+                            address: {
+                                address1: '123 Mock Street',
+                                city: 'Singapore',
+                                region: 'SG',
+                                state: 'Singapore',
+                            },
+                            attachments: [
+                                {
+                                    attachmentType: 'SHOP_DOOR_HEAD_PIC',
+                                    fileList: [
+                                        {
+                                            fileName: 'shop_door.jpeg',
+                                            fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                        },
+                                    ],
+                                },
+                                {
+                                    attachmentType: 'SHOP_INSIDE_PIC',
+                                    fileList: [
+                                        {
+                                            fileName: 'shop_inside.jpeg',
+                                            fileUrl: 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     ],
                 },

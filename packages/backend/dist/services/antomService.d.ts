@@ -29,6 +29,7 @@ interface RegisterData {
         merchantBrandName?: string | null;
         contactType?: string | null;
         contactInfo?: string | null;
+        wfKycData?: string | null;
     } | null;
     entityAssociations?: {
         associationType: string;

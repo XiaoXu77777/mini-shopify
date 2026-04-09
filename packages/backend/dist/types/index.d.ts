@@ -18,12 +18,65 @@ export interface AntomResponse {
     resultInfo?: AntomResultInfo;
     [key: string]: unknown;
 }
+export interface AntomFileItem {
+    fileName: string;
+    fileUrl: string;
+}
+export interface AntomCertificate {
+    certificateNo?: string;
+    certificateType?: string;
+    fileList?: AntomFileItem[];
+    registrationCertificate?: boolean;
+}
+export interface AntomAddress {
+    address1?: string;
+    address2?: string;
+    city?: string;
+    region?: string;
+    state?: string;
+    zipCode?: string;
+}
+export interface AntomStoreAttachment {
+    attachmentType: string;
+    fileList: AntomFileItem[];
+}
+export interface AntomStore {
+    name?: string;
+    referenceStoreId?: string;
+    region?: string;
+    mcc?: string;
+    address?: AntomAddress;
+    attachments?: AntomStoreAttachment[];
+}
+export interface AntomEntityAssociationIndividual {
+    name: {
+        firstName?: string;
+        lastName?: string;
+        fullName?: string;
+    };
+    nationality?: string;
+    dateOfBirth?: string;
+    certificates?: AntomCertificate[];
+}
+export interface AntomEntityAssociationCompany {
+    legalName?: string;
+    companyType?: string;
+    certificates?: AntomCertificate[];
+}
+export interface AntomEntityAssociation {
+    associationType: string;
+    legalEntityType: string;
+    shareholdingRatio?: number;
+    individual?: AntomEntityAssociationIndividual;
+    company?: AntomEntityAssociationCompany;
+}
 export interface AntomRegisterRequest {
     registrationRequestId: string;
+    partnerId?: string;
     merchant: {
         loginId: string;
         legalEntityType: 'COMPANY';
-        parentMerchantId: string;
+        integrationPartnerId?: string;
         referenceMerchantId: string;
         businessInfo: {
             appName?: string;
@@ -42,54 +95,26 @@ export interface AntomRegisterRequest {
             companyType?: string;
             companyUnit?: string;
             legalName?: string;
-            certificates?: {
-                certificateNo?: string;
-                certificateType?: string;
-                fileList?: {
-                    fileName: string;
-                    fileUrl: string;
-                }[];
-                registrationCertificate?: boolean;
-            }[];
-            registeredAddress?: {
-                address1?: string;
-                address2?: string;
-                city?: string;
-                region?: string;
-                state?: string;
-                zipCode?: string;
-            };
+            incorporationDate?: string;
+            vatNo?: string;
+            certificates?: AntomCertificate[];
+            registeredAddress?: AntomAddress;
             contactMethods?: {
                 contactMethodInfo: string;
                 contactMethodType: string;
             }[];
         };
-        entityAssociations?: {
-            associationType: string;
-            legalEntityType: string;
-            shareholdingRatio?: number;
-            individual?: {
-                name: {
-                    firstName?: string;
-                    lastName?: string;
-                    fullName?: string;
-                };
-                dateOfBirth?: string;
-                certificates?: {
-                    certificateNo?: string;
-                    certificateType?: string;
-                }[];
-            };
-        }[];
-        settlementInfoList: {
-            settlementCurrency: string;
-            settlementAccountType?: string;
-            settlementAccountInfo?: {
-                accountNo: string;
-            };
-        }[];
+        entityAssociations?: AntomEntityAssociation[];
+        stores?: AntomStore[];
     };
-    paymentMethodOpenRequests: {
+    settlementInfoList?: {
+        settlementCurrency: string;
+        settlementAccountType?: string;
+        settlementAccountInfo?: {
+            accountNo: string;
+        };
+    }[];
+    paymentMethodActivationRequests: {
         paymentMethodType: string;
         productCodes: string[];
     }[];

@@ -9,6 +9,7 @@ export declare const config: {
         agentToken: string;
         parentMerchantId: string;
         defaultSettlementCurrency: string;
+        sandbox: boolean;
     };
     mockMode: boolean;
     mockNotifyDelayMs: number;
