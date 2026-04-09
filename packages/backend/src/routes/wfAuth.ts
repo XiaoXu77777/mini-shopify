@@ -358,16 +358,16 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
       const { signRequest, buildSignatureHeader } = await import('../utils/crypto');
       const signature = signRequest(
         '/amsin/api/v1/oauth/applyToken',
-        config.wf.wfValidClientID,
+        config.wf.oauthClientID,
         requestTime,
         JSON.stringify(requestBody),
-        config.antom.privateKey
+        config.wf.privateKey
       );
 
 
       const requestHeaders = {
         'Content-Type': 'application/json; charset=UTF-8',
-        'client-id': config.wf.wfValidClientID,
+        'client-id': config.wf.oauthClientID,
         'Request-Time': requestTime,
         'Signature': buildSignatureHeader(signature),
       };

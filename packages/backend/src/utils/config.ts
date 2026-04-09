@@ -24,9 +24,10 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'https://minishopify.xyz',
 
   wf: {
-    wfValidClientID:'5J5YHR5W2YBU9403103',
+    oauthClientID:'5J5YHR5W2YBU9403103',
     oauthClientId:  '2188120272582435',
     oauthClientSecret: '',
+    privateKey: process.env.WF_PRIVATE_KEY || '',
   },
 
   // Mock presets: pre-configured results for mock notifications
