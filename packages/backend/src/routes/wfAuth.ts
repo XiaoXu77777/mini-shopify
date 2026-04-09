@@ -358,7 +358,7 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
       const { signRequest, buildSignatureHeader } = await import('../utils/crypto');
       const signature = signRequest(
         '/amsin/api/v1/oauth/applyToken',
-        config.antom.clientId,
+        config.wf.wfValidClientID,
         requestTime,
         JSON.stringify(requestBody),
         config.antom.privateKey
@@ -367,7 +367,7 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
 
       const requestHeaders = {
         'Content-Type': 'application/json; charset=UTF-8',
-        'client-id': config.antom.clientId,
+        'client-id': config.wf.wfValidClientID,
         'Request-Time': requestTime,
         'Signature': buildSignatureHeader(signature),
       };

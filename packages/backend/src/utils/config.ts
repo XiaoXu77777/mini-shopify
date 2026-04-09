@@ -24,6 +24,7 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'https://minishopify.xyz',
 
   wf: {
+    wfValidClientID:'5J5YHR5W2YBU9403103',
     oauthClientId: process.env.WF_OAUTH_CLIENT_ID || '2188120328356641',
     oauthClientSecret: process.env.WF_OAUTH_CLIENT_SECRET || '',
   },
