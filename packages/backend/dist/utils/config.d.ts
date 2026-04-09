@@ -14,6 +14,11 @@ export declare const config: {
     mockMode: boolean;
     mockNotifyDelayMs: number;
     notifyCallbackUrl: string;
+    frontendUrl: string;
+    wf: {
+        oauthClientId: string;
+        oauthClientSecret: string;
+    };
     mockPresets: {
         kycResult: "APPROVED" | "REJECTED" | "SUPPLEMENT_REQUIRED";
         rejectedReason: string;

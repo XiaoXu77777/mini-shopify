@@ -23,6 +23,11 @@ exports.config = {
     mockMode: process.env.MOCK_MODE === 'true',
     mockNotifyDelayMs: parseInt(process.env.MOCK_NOTIFY_DELAY_MS || '1500', 10),
     notifyCallbackUrl: process.env.NOTIFY_CALLBACK_URL || '',
+    frontendUrl: process.env.FRONTEND_URL || 'https://minishopify.xyz',
+    wf: {
+        oauthClientId: process.env.WF_OAUTH_CLIENT_ID || '2188120328356641',
+        oauthClientSecret: process.env.WF_OAUTH_CLIENT_SECRET || '',
+    },
     // Mock presets: pre-configured results for mock notifications
     mockPresets: {
         kycResult: 'APPROVED',
