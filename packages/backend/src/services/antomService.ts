@@ -163,12 +163,18 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
   const { parentMerchantId } = config.antom;
 
   // Temporary workaround: KYB fileUrl cannot be used directly in register requests.
-  // When useProxyFileUrl is enabled, replace all fileUrl with the configured proxy URL.
+  // When useProxyFileUrl is enabled, replace all fileUrl/fileName with the configured proxy values.
   const resolveFileUrl = (originalUrl: string): string => {
     if (config.useProxyFileUrl && originalUrl) {
       return config.proxyFileUrl;
     }
     return originalUrl;
+  };
+  const resolveFileName = (originalName: string): string => {
+    if (config.useProxyFileUrl && originalName) {
+      return config.proxyFileName;
+    }
+    return originalName;
   };
 
   // Parse wfKycData if available (contains the full KYB response with nested structures)
@@ -212,7 +218,7 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
       certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
       fileList: Array.isArray(cert.fileList)
         ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
-            fileName: String(f.fileName || ''),
+            fileName: resolveFileName(String(f.fileName || '')),
             fileUrl: resolveFileUrl(String(f.fileUrl || '')),
           }))
         : undefined,
@@ -289,7 +295,7 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
                 certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
                 fileList: Array.isArray(cert.fileList)
                   ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
-                      fileName: String(f.fileName || ''),
+                      fileName: resolveFileName(String(f.fileName || '')),
                       fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                     }))
                   : undefined,
@@ -310,7 +316,7 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
                 certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
                 fileList: Array.isArray(cert.fileList)
                   ? (cert.fileList as Record<string, unknown>[]).map((f) => ({
-                      fileName: String(f.fileName || ''),
+                      fileName: resolveFileName(String(f.fileName || '')),
                       fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                     }))
                   : undefined,
@@ -371,7 +377,7 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
           attachmentType: String(att.attachmentType || ''),
           fileList: Array.isArray(att.fileList)
             ? (att.fileList as Record<string, unknown>[]).map((f) => ({
-                fileName: String(f.fileName || ''),
+                fileName: resolveFileName(String(f.fileName || '')),
                 fileUrl: resolveFileUrl(String(f.fileUrl || '')),
               }))
             : [],

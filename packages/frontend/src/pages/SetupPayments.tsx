@@ -543,8 +543,14 @@ export default function SetupPayments() {
                 placeholder="Business name"
               />
             </Form.Item>
-            <Form.Item label="Website URL" required>
+            <Form.Item
+              label="Website URL"
+              required
+              validateStatus={kycData.websiteUrl && !/^https?:\/\/.+\..+/.test(kycData.websiteUrl) ? 'error' : ''}
+              help={kycData.websiteUrl && !/^https?:\/\/.+\..+/.test(kycData.websiteUrl) ? 'Please enter a valid URL starting with http:// or https://' : ''}
+            >
               <Input
+                type="url"
                 value={kycData.websiteUrl}
                 onChange={(e) => updateKycField('websiteUrl', e.target.value)}
                 placeholder="https://example.com"
@@ -706,7 +712,7 @@ export default function SetupPayments() {
                 type="primary" 
                 loading={submitting}
                 onClick={handleSubmit}
-                disabled={!kycData.legalName || !kycData.companyType || !kycData.certificateNo}
+                disabled={!kycData.legalName || !kycData.companyType || !kycData.certificateNo || (!!kycData.websiteUrl && !/^https?:\/\/.+\..+/.test(kycData.websiteUrl))}
               >
                 Submit Application
               </Button>

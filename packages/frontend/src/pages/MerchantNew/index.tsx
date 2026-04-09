@@ -153,8 +153,8 @@ export default function MerchantNew() {
           address1: String(kybAny.address1 || ''),
           address2: String(kybAny.address2 || ''),
           zipCode: String(kybAny.zipCode || ''),
-          // Business info
-          appName: String(kybAny.appName || ''),
+          // Business info (appName always uses shopName from step 1)
+          appName: data.shopName,
           merchantBrandName: String(kybAny.merchantBrandName || ''),
           mcc: String(kybAny.mcc || ''),
           doingBusinessAs: String(kybAny.doingBusinessAs || ''),
@@ -297,7 +297,7 @@ export default function MerchantNew() {
           address1: kycData?.address1 || data.address1,
           address2: kycData?.address2 ?? data.address2,
           zipCode: kycData?.zipCode || data.zipCode,
-          appName: kycData?.appName || data.appName,
+          appName: data.shopName,
           merchantBrandName: kycData?.merchantBrandName || data.merchantBrandName,
           mcc: kycData?.mcc || data.mcc,
           doingBusinessAs: kycData?.doingBusinessAs || data.doingBusinessAs,
@@ -344,7 +344,7 @@ export default function MerchantNew() {
       case 1:
         return !!data.wfAccountId && !!data.wfKycData; // WF connect is now required
       case 2:
-        return !!data.legalName && !!data.companyType && !!data.certificateNo && !!data.mcc && !!data.doingBusinessAs && !!data.websiteUrl;
+        return !!data.legalName && !!data.companyType && !!data.certificateNo && !!data.mcc && !!data.doingBusinessAs && !!data.websiteUrl && /^https?:\/\/.+\..+/.test(data.websiteUrl);
       default:
         return true;
     }

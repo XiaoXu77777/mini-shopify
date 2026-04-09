@@ -177,10 +177,10 @@ export default function KycFormStep({ data, onChange }: Props) {
 
       <Divider />
       <Title level={5}>Business Information</Title>
-      <Form.Item label="App / Store Name" required>
+      <Form.Item label="App / Store Name" required tooltip="Auto-filled from your shop name">
         <Input
-          value={data.appName}
-          onChange={(e) => onChange({ appName: e.target.value })}
+          value={data.appName || data.shopName}
+          disabled
           placeholder="Application or store name"
         />
       </Form.Item>
@@ -206,8 +206,14 @@ export default function KycFormStep({ data, onChange }: Props) {
           placeholder="Business name"
         />
       </Form.Item>
-      <Form.Item label="Website URL" required>
+      <Form.Item
+        label="Website URL"
+        required
+        validateStatus={data.websiteUrl && !/^https?:\/\/.+\..+/.test(data.websiteUrl) ? 'error' : ''}
+        help={data.websiteUrl && !/^https?:\/\/.+\..+/.test(data.websiteUrl) ? 'Please enter a valid URL starting with http:// or https://' : ''}
+      >
         <Input
+          type="url"
           value={data.websiteUrl}
           onChange={(e) => onChange({ websiteUrl: e.target.value })}
           placeholder="https://example.com"
