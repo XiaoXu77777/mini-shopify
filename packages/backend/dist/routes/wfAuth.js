@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const uuid_1 = require("uuid");
@@ -319,21 +352,29 @@ router.post('/exchange-token', async (req, res) => {
             return;
         }
         // In production, call WorldFirst API to exchange authCode for accessToken
-        // POST https://portal.worldfirst.com/api/oauth/token
+        // POST /amsin/api/v1/oauth/applyToken
         // Reference: https://docs.antom.com/ac/isv/apply_token_wf
         try {
-            const tokenUrl = 'https://portal.worldfirst.com/api/oauth/token';
+            const baseUrl = 'https://developers.worldfirst.com.cn';
+            const tokenUrl = `${baseUrl}/amsin/api/v1/oauth/applyToken`;
+            // Build request body with proper signature
+            const requestTime = new Date().toISOString().replace('Z', '+00:00');
+            const requestBody = {
+                authCode,
+                grantType: 'AUTHORIZATION_CODE',
+            };
+            // Import crypto functions for signing
+            const { signRequest, buildSignatureHeader } = await Promise.resolve().then(() => __importStar(require('../utils/crypto')));
+            const signature = signRequest('/amsin/api/v1/oauth/applyToken', config_1.config.antom.clientId, requestTime, JSON.stringify(requestBody), config_1.config.antom.privateKey);
             const response = await fetch(tokenUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'client-id': config_1.config.antom.clientId,
+                    'Request-Time': requestTime,
+                    'Signature': buildSignatureHeader(signature),
                 },
-                body: JSON.stringify({
-                    grantType: 'AUTHORIZATION_CODE',
-                    authCode,
-                    clientId: config_1.config.wf?.oauthClientId,
-                    clientSecret: config_1.config.wf?.oauthClientSecret,
-                }),
+                body: JSON.stringify(requestBody),
             });
             if (!response.ok) {
                 throw new Error(`Token exchange failed: ${response.status}`);
