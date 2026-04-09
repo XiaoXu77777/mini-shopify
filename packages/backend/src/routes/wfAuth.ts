@@ -270,7 +270,7 @@ router.post('/oauth-url', async (req: Request, res: Response) => {
 
     // Build OAuth URL with required parameters
     // Note: In production, these values should come from environment variables or database
-    const oauthClientId = config.wf?.oauthClientId || '2188120328356641';
+    const oauthClientId = config.wf?.oauthClientId;
     const referenceCustomerId = `MERCHANT_${merchantId}`;
     
     // Build redirect URL (should point to frontend callback)
