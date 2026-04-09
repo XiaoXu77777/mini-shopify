@@ -21,7 +21,7 @@ export const config = {
   mockMode: process.env.MOCK_MODE === 'true',
   mockNotifyDelayMs: parseInt(process.env.MOCK_NOTIFY_DELAY_MS || '1500', 10),
   notifyCallbackUrl: process.env.NOTIFY_CALLBACK_URL || '',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL || 'https://minishopify.xyz',
 
   wf: {
     oauthClientId: process.env.WF_OAUTH_CLIENT_ID || '2188120328356641',

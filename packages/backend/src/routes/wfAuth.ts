@@ -274,7 +274,7 @@ router.post('/oauth-url', async (req: Request, res: Response) => {
     const referenceCustomerId = `MERCHANT_${merchantId}`;
     
     // Build redirect URL (should point to frontend callback)
-    const redirectUrl = `${config.frontendUrl || 'http://localhost:5173'}/merchants/${merchantId}/setup-payments`;
+    const redirectUrl = `${config.frontendUrl || 'https://minishopify.xyz'}/merchants/${merchantId}/setup-payments`;
     
     // Build extendInfo with store details
     const extendInfo = {
@@ -419,7 +419,7 @@ router.get('/oauth-callback', async (req: Request, res: Response) => {
     oauthStateStore.delete(state as string);
 
     // Redirect to frontend with authCode
-    const redirectUrl = `${config.frontendUrl || 'http://localhost:5173'}/merchants/${stateData.merchantId}/setup-payments?authCode=${authCode}&state=${state}`;
+    const redirectUrl = `${config.frontendUrl || 'https://minishopify.xyz'}/merchants/${stateData.merchantId}/setup-payments?authCode=${authCode}&state=${state}`;
     res.redirect(redirectUrl);
   } catch (err) {
     console.error('[WF] OAuth callback error:', err);
