@@ -191,16 +191,24 @@ export default function SetupPayments() {
           legalRepIdNo: String(kyb.legalRepIdNo || ''),
           legalRepDob: String(kyb.legalRepDob || ''),
           entityAssociations: Array.isArray(kyb.entityAssociations)
-            ? kyb.entityAssociations.map((ea: Record<string, unknown>) => ({
-                associationType: String(ea.associationType || 'DIRECTOR'),
-                shareholdingRatio: String(ea.shareholdingRatio || ''),
-                fullName: String(ea.fullName || ''),
-                firstName: String(ea.firstName || ''),
-                lastName: String(ea.lastName || ''),
-                dateOfBirth: String(ea.dateOfBirth || ''),
-                idType: String(ea.idType || ''),
-                idNo: String(ea.idNo || ''),
-              }))
+            ? (kyb.entityAssociations as Record<string, unknown>[]).map((ea) => {
+                // WF returns nested: { associationType, legalEntityType, individual: { name: { fullName }, certificates: [...] } }
+                // Frontend expects flat: { associationType, fullName, firstName, lastName, idType, idNo, ... }
+                const ind = ea.individual as Record<string, unknown> | undefined;
+                const name = ind?.name as Record<string, unknown> | undefined;
+                const certs = ind?.certificates as Array<Record<string, unknown>> | undefined;
+                const firstCert = certs?.[0];
+                return {
+                  associationType: String(ea.associationType || 'DIRECTOR'),
+                  shareholdingRatio: ea.shareholdingRatio != null ? String(ea.shareholdingRatio) : '',
+                  fullName: String(name?.fullName || ea.fullName || ''),
+                  firstName: String(name?.firstName || ea.firstName || ''),
+                  lastName: String(name?.lastName || ea.lastName || ''),
+                  dateOfBirth: String(ind?.dateOfBirth || ea.dateOfBirth || ''),
+                  idType: String(firstCert?.certificateType || ea.idType || ''),
+                  idNo: String(firstCert?.certificateNo || ea.idNo || ''),
+                };
+              })
             : [],
         });
         

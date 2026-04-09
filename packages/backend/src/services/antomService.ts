@@ -750,16 +750,80 @@ export const antomService = {
       const status = result?.resultStatus;
 
       if (status === 'S') {
-        // Extract KYB data from response - try customer.businessPartner first, fallback to full response
-        let kybData: Record<string, unknown>;
-        if (data.customer && typeof data.customer === 'object') {
-          const customer = data.customer as Record<string, unknown>;
-          kybData = (customer.businessPartner as Record<string, unknown>) || customer;
-        } else {
-          // Exclude result field from kybData
-          const { result: _result, ...rest } = data;
-          kybData = rest;
+        // Extract and flatten KYB data from WF response
+        // WF returns nested structure: { merchant: { businessInfo: {...}, company: {...}, ... } }
+        // Frontend expects flat structure: { legalName, companyType, address1, ... }
+        const merchant = data.merchant as Record<string, unknown> | undefined;
+        if (!merchant) {
+          return { success: true, kybData: {} };
         }
+
+        const company = merchant.company as Record<string, unknown> | undefined;
+        const businessInfo = merchant.businessInfo as Record<string, unknown> | undefined;
+        const registeredAddress = company?.registeredAddress as Record<string, unknown> | undefined;
+
+        // Flatten nested WF merchant structure to match frontend KYC form fields
+        const kybData: Record<string, unknown> = {
+          // Company info
+          legalName: company?.legalName || '',
+          companyType: company?.companyType || '',
+          incorporationDate: company?.incorporationDate || '',
+          vatNo: company?.vatNo || '',
+          branchName: company?.branchName || '',
+          companyUnit: company?.companyUnit || '',
+          // Certificates (nested structure preserved for rich data)
+          certificates: company?.certificates || [],
+          // Flat certificate fields for DB storage
+          certificateType: '',
+          certificateNo: '',
+          // Registered address
+          addressRegion: registeredAddress?.region || '',
+          addressState: registeredAddress?.state || '',
+          addressCity: registeredAddress?.city || '',
+          address1: registeredAddress?.address1 || '',
+          address2: registeredAddress?.address2 || '',
+          zipCode: registeredAddress?.zipCode || '',
+          // Business info
+          appName: businessInfo?.appName || '',
+          merchantBrandName: businessInfo?.merchantBrandName || '',
+          mcc: businessInfo?.mcc || businessInfo?.industryType || '',
+          doingBusinessAs: businessInfo?.doingBusinessAs || '',
+          englishName: businessInfo?.englishName || '',
+          serviceDescription: businessInfo?.serviceDescription || '',
+          // Website
+          websiteUrl: '',
+          // Contact
+          contactType: '',
+          contactInfo: '',
+          // Entity associations (preserve nested structure)
+          entityAssociations: merchant.entityAssociations || [],
+          // Stores (preserve nested structure)
+          stores: merchant.stores || [],
+          // Keep the full merchant object for any fields we might have missed
+          _rawMerchant: merchant,
+        };
+
+        // Extract first certificate info for flat fields
+        const certs = company?.certificates as Array<Record<string, unknown>> | undefined;
+        if (certs && certs.length > 0) {
+          kybData.certificateType = certs[0].certificateType || '';
+          kybData.certificateNo = certs[0].certificateNo || '';
+        }
+
+        // Extract website from businessInfo.websites array
+        const websites = businessInfo?.websites as Array<Record<string, unknown>> | undefined;
+        if (websites && websites.length > 0) {
+          kybData.websiteUrl = websites[0].url || '';
+        }
+
+        // Extract contact from company.contactMethods
+        const contacts = company?.contactMethods as Array<Record<string, unknown>> | undefined;
+        if (contacts && contacts.length > 0) {
+          kybData.contactType = contacts[0].contactMethodType || '';
+          kybData.contactInfo = contacts[0].contactMethodInfo || '';
+        }
+
+        console.log('[WF] queryKybInfo flattened kybData keys:', Object.keys(kybData));
         return { success: true, kybData };
       } else {
         const code = result?.resultCode || 'UNKNOWN';
