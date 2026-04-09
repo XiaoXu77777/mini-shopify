@@ -737,7 +737,7 @@ export const antomService = {
       });
 
       const responseText = await response.text();
-      console.log(`[WF] queryKybInfo <<< status=${response.status}, body=${responseText.substring(0, 1000)}`);
+      console.log(`[WF] queryKybInfo <<< status=${response.status}, body=${responseText}`);
 
       let data: Record<string, unknown>;
       try {
