@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Steps, Button, message, Typography, Card, Result, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { merchantApi } from '../../services/merchantApi';
+import { useAppContext } from '../../context/AppContext';
 import { ALL_PAYMENT_METHOD_TYPES } from '../../utils/constants';
 import BasicInfoStep from './steps/BasicInfo';
 import WfConnectStep from './steps/WfConnect';
@@ -122,6 +123,7 @@ export default function MerchantNew() {
   const [submitted, setSubmitted] = useState(false);
   const [kybLoading, setKybLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshMerchants, setCurrentMerchant } = useAppContext();
 
   const updateData = useCallback((partial: Partial<WizardData>) => {
     setData((prev) => ({ ...prev, ...partial }));
@@ -136,8 +138,9 @@ export default function MerchantNew() {
         const kybData = res.data.kybData;
         const kybAny = kybData as Record<string, unknown>;
         
-        // Pre-fill KYC fields from KYB data
-        updateData({
+        // Use functional update to access latest state (avoid stale closure)
+        setData((prev) => ({
+          ...prev,
           wfKycData: kybData,
           // Company info
           legalName: String(kybAny.legalName || ''),
@@ -154,7 +157,7 @@ export default function MerchantNew() {
           address2: String(kybAny.address2 || ''),
           zipCode: String(kybAny.zipCode || ''),
           // Business info (appName always uses shopName from step 1)
-          appName: data.shopName,
+          appName: prev.shopName,
           merchantBrandName: String(kybAny.merchantBrandName || ''),
           mcc: String(kybAny.mcc || ''),
           doingBusinessAs: String(kybAny.doingBusinessAs || ''),
@@ -169,20 +172,48 @@ export default function MerchantNew() {
           legalRepIdType: String(kybAny.legalRepIdType || ''),
           legalRepIdNo: String(kybAny.legalRepIdNo || ''),
           legalRepDob: String(kybAny.legalRepDob || ''),
-          // Entity associations
+          // Entity associations - extract from nested individual/company structures
           entityAssociations: Array.isArray(kybAny.entityAssociations) 
-            ? kybAny.entityAssociations.map((ea: Record<string, unknown>) => ({
-                associationType: String(ea.associationType || 'DIRECTOR'),
-                shareholdingRatio: String(ea.shareholdingRatio || ''),
-                fullName: String(ea.fullName || ''),
-                firstName: String(ea.firstName || ''),
-                lastName: String(ea.lastName || ''),
-                dateOfBirth: String(ea.dateOfBirth || ''),
-                idType: String(ea.idType || ''),
-                idNo: String(ea.idNo || ''),
-              }))
+            ? (kybAny.entityAssociations as Record<string, unknown>[]).map((ea) => {
+                const legalEntityType = String(ea.legalEntityType || 'INDIVIDUAL');
+                let fullName = '';
+                let firstName = '';
+                let lastName = '';
+                let dateOfBirth = '';
+                let idType = '';
+                let idNo = '';
+
+                if (legalEntityType === 'INDIVIDUAL' && ea.individual) {
+                  const ind = ea.individual as Record<string, unknown>;
+                  const name = ind.name as Record<string, unknown> | undefined;
+                  fullName = String(name?.fullName || '');
+                  firstName = String(name?.firstName || '');
+                  lastName = String(name?.lastName || '');
+                  dateOfBirth = String(ind.dateOfBirth || '');
+                  // Extract first certificate info
+                  const certs = ind.certificates as Record<string, unknown>[] | undefined;
+                  if (certs && certs.length > 0) {
+                    idType = String(certs[0].certificateType || '');
+                    idNo = String(certs[0].certificateNo || '');
+                  }
+                } else if (legalEntityType === 'COMPANY' && ea.company) {
+                  const comp = ea.company as Record<string, unknown>;
+                  fullName = String(comp.legalName || '');
+                }
+
+                return {
+                  associationType: String(ea.associationType || 'DIRECTOR'),
+                  shareholdingRatio: String(ea.shareholdingRatio || ''),
+                  fullName,
+                  firstName,
+                  lastName,
+                  dateOfBirth,
+                  idType,
+                  idNo,
+                };
+              })
             : [],
-        });
+        }));
         message.success('KYB information loaded successfully!');
       } else {
         message.error(res.data.error || 'Failed to load KYB information');
@@ -193,7 +224,7 @@ export default function MerchantNew() {
     } finally {
       setKybLoading(false);
     }
-  }, [updateData]);
+  }, []);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -230,7 +261,7 @@ export default function MerchantNew() {
         websiteUrl: data.websiteUrl,
         englishName: data.englishName,
         serviceDescription: data.serviceDescription,
-        appName: data.appName,
+        appName: data.appName || data.shopName,
         merchantBrandName: data.merchantBrandName,
         contactType: data.contactType,
         contactInfo: data.contactInfo,
@@ -250,6 +281,14 @@ export default function MerchantNew() {
       await merchantApi.register(merchantId, data.paymentMethodTypes);
 
       updateData({ merchantId });
+
+      // Refresh merchant list and switch to the newly created store
+      await refreshMerchants();
+      const newMerchant = await merchantApi.getById(merchantId);
+      if (newMerchant.data) {
+        setCurrentMerchant(newMerchant.data);
+      }
+
       setSubmitted(true);
       message.success('Registration submitted successfully!');
     } catch (err) {

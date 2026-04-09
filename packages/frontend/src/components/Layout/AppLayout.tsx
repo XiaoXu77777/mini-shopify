@@ -3,9 +3,7 @@ import { Layout, Menu, Dropdown, Typography, Modal, Form, Input, Select, message
 import type { DropdownProps } from 'antd';
 import {
   HomeOutlined,
-  DashboardOutlined,
   ShopOutlined,
-  SettingOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -17,9 +15,7 @@ const { Text } = Typography;
 
 const menuItems = [
   { key: '/', icon: <HomeOutlined />, label: 'Home' },
-  { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '/merchants', icon: <ShopOutlined />, label: 'Merchants' },
-  { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
+  { key: '/merchant', icon: <ShopOutlined />, label: 'Merchant' },
 ];
 
 export default function AppLayout() {
@@ -30,9 +26,24 @@ export default function AppLayout() {
   const [creating, setCreating] = useState(false);
   const [form] = Form.useForm();
 
-  const selectedKey = menuItems
-    .filter((item) => location.pathname.startsWith(item.key) && item.key !== '/')
-    .sort((a, b) => b.key.length - a.key.length)[0]?.key || '/';
+  const selectedKey = (() => {
+    if (location.pathname === '/') return '/';
+    if (location.pathname.startsWith('/merchant')) return '/merchant';
+    return '/';
+  })();
+
+  const handleMenuClick = ({ key }: { key: string }) => {
+    if (key === '/merchant') {
+      // Navigate to current merchant detail page
+      if (currentMerchant) {
+        navigate(`/merchants/${currentMerchant.id}`);
+      } else {
+        message.warning('Please select a store first from the dropdown above.');
+      }
+    } else {
+      navigate(key);
+    }
+  };
 
   const handleCreateStore = async () => {
     try {
@@ -60,16 +71,6 @@ export default function AppLayout() {
 
   // 构建店铺切换下拉菜单
   const storeMenuItems = [
-    {
-      key: 'all-stores',
-      label: (
-        <div style={{ padding: '4px 0' }}>
-          <Text strong>All Stores</Text>
-        </div>
-      ),
-      onClick: () => setCurrentMerchant(null),
-    },
-    { type: 'divider' as const },
     ...merchants.map((merchant) => ({
       key: merchant.id,
       label: (
@@ -118,7 +119,7 @@ export default function AppLayout() {
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={handleMenuClick}
         />
       </Sider>
       <Layout>
@@ -149,7 +150,7 @@ export default function AppLayout() {
             >
               <ShopOutlined />
               <Text>
-                {currentMerchant ? currentMerchant.shopName : 'All Stores'}
+                {currentMerchant ? currentMerchant.shopName : 'Select Store'}
               </Text>
             </div>
           </Dropdown>

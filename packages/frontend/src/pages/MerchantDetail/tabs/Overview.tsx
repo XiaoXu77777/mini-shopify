@@ -1,4 +1,4 @@
-import { Descriptions, Timeline, Typography, Tag } from 'antd';
+import { Descriptions, Timeline, Typography, Tag, Card, Spin } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -8,22 +8,95 @@ import {
   CreditCardOutlined,
   WarningOutlined,
   PoweroffOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import type { Merchant, Notification } from '../../../types';
+import type { RegistrationStatusResult } from '../index';
 
 const { Text } = Typography;
 
 interface Props {
   merchant: Merchant;
   notifications: Notification[];
+  registrationStatus: RegistrationStatusResult | null;
+  registrationStatusLoading: boolean;
 }
 
-export default function OverviewTab({ merchant, notifications }: Props) {
+export default function OverviewTab({ merchant, notifications, registrationStatus, registrationStatusLoading }: Props) {
   const timelineItems = buildTimeline(merchant, notifications);
 
+  // Map registration status to display info
+  const getRegistrationStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
+        return { color: 'success' as const, icon: <CheckCircleOutlined />, label: 'Approved' };
+      case 'FAIL':
+        return { color: 'error' as const, icon: <CloseCircleOutlined />, label: 'Failed' };
+      case 'PROCESSING':
+        return { color: 'processing' as const, icon: <SyncOutlined spin />, label: 'Processing' };
+      case 'SUPPLEMENT_REQUIRED':
+        return { color: 'warning' as const, icon: <ExclamationCircleOutlined />, label: 'Supplement Required' };
+      default:
+        return { color: 'default' as const, icon: <ClockCircleOutlined />, label: status };
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', gap: 32 }}>
-      <div style={{ flex: 1 }}>
+    <div style={{ display: 'flex', gap: 32, flexDirection: 'column' }}>
+      {/* Registration Status Card - shown when merchant has been registered */}
+      {merchant.registrationRequestId && (
+        <Card
+          title="Registration Status (inquiryRegistrationStatus)"
+          size="small"
+          style={{ marginBottom: 0 }}
+          extra={registrationStatusLoading ? <Spin size="small" /> : null}
+        >
+          {registrationStatusLoading && !registrationStatus ? (
+            <Spin size="small" />
+          ) : registrationStatus ? (
+            <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Registration Status">
+                <Tag
+                  icon={getRegistrationStatusDisplay(registrationStatus.registrationStatus).icon}
+                  color={getRegistrationStatusDisplay(registrationStatus.registrationStatus).color}
+                >
+                  {getRegistrationStatusDisplay(registrationStatus.registrationStatus).label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Registration Request ID">
+                <Text copyable style={{ fontSize: 12 }}>
+                  {registrationStatus.registrationRequestId || merchant.registrationRequestId}
+                </Text>
+              </Descriptions.Item>
+              {registrationStatus.referenceMerchantId && (
+                <Descriptions.Item label="Reference Merchant ID">
+                  <Text copyable style={{ fontSize: 12 }}>{registrationStatus.referenceMerchantId}</Text>
+                </Descriptions.Item>
+              )}
+              {registrationStatus.parentMerchantId && (
+                <Descriptions.Item label="Parent Merchant ID">
+                  <Text copyable style={{ fontSize: 12 }}>{registrationStatus.parentMerchantId}</Text>
+                </Descriptions.Item>
+              )}
+              {registrationStatus.failReasonType && (
+                <Descriptions.Item label="Fail Reason Type" span={2}>
+                  <Text type="danger">{registrationStatus.failReasonType}</Text>
+                </Descriptions.Item>
+              )}
+              {registrationStatus.failReasonDescription && (
+                <Descriptions.Item label="Fail Reason Description" span={2}>
+                  <Text type="danger">{registrationStatus.failReasonDescription}</Text>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+          ) : (
+            <Text type="secondary">No registration status available</Text>
+          )}
+        </Card>
+      )}
+
+      <div style={{ display: 'flex', gap: 32 }}>
+        <div style={{ flex: 1 }}>
         <Descriptions title="Merchant Information" bordered column={1} size="small">
           <Descriptions.Item label="Shop Name">{merchant.shopName}</Descriptions.Item>
           <Descriptions.Item label="Email">{merchant.email}</Descriptions.Item>
@@ -52,10 +125,11 @@ export default function OverviewTab({ merchant, notifications }: Props) {
             </Descriptions.Item>
           )}
         </Descriptions>
-      </div>
-      <div style={{ width: 360 }}>
-        <Typography.Title level={5}>Status Timeline</Typography.Title>
-        <Timeline items={timelineItems} />
+        </div>
+        <div style={{ width: 360 }}>
+          <Typography.Title level={5}>Status Timeline</Typography.Title>
+          <Timeline items={timelineItems} />
+        </div>
       </div>
     </div>
   );

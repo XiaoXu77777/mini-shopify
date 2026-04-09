@@ -48,6 +48,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshMerchants();
   }, []);
 
+  // Auto-select first merchant when merchants load and none is selected
+  useEffect(() => {
+    if (merchants.length > 0 && !currentMerchant) {
+      setCurrentMerchant(merchants[0]);
+    }
+    // If current merchant was removed from list, select first available
+    if (merchants.length > 0 && currentMerchant && !merchants.find(m => m.id === currentMerchant.id)) {
+      setCurrentMerchant(merchants[0]);
+    }
+  }, [merchants]);
+
   return (
     <AppContext.Provider value={{ config, refreshConfig, merchants, currentMerchant, setCurrentMerchant, refreshMerchants }}>
       {children}

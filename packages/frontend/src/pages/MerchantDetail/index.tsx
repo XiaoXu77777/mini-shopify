@@ -9,41 +9,76 @@ import KycTab from './tabs/KycTab';
 import PaymentMethodsTab from './tabs/PaymentMethods';
 import NotificationsTab from './tabs/Notifications';
 import useWebSocket from '../../hooks/useWebSocket';
+import { useAppContext } from '../../context/AppContext';
 import type { Merchant, Notification } from '../../types';
 
 const { Title } = Typography;
 
+export interface RegistrationStatusResult {
+  registrationStatus: string;
+  registrationRequestId?: string;
+  parentMerchantId?: string;
+  referenceMerchantId?: string;
+  failReasonType?: string;
+  failReasonDescription?: string;
+}
+
 export default function MerchantDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id: paramId } = useParams<{ id: string }>();
+  const { currentMerchant } = useAppContext();
+  const merchantId = paramId || currentMerchant?.id;
   const navigate = useNavigate();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatusResult | null>(null);
+  const [registrationStatusLoading, setRegistrationStatusLoading] = useState(false);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Query registration status from Antom (guide section 4.2)
+  const fetchRegistrationStatus = useCallback(async (merchantId: string) => {
+    setRegistrationStatusLoading(true);
+    try {
+      const res = await merchantApi.inquireRegistrationStatus(merchantId);
+      const data = res.data;
+      if (data.registrationResult) {
+        setRegistrationStatus(data.registrationResult as RegistrationStatusResult);
+      }
+    } catch (err) {
+      console.error('Failed to query registration status:', err);
+    } finally {
+      setRegistrationStatusLoading(false);
+    }
+  }, []);
+
   const fetchMerchant = useCallback(async () => {
-    if (!id) return;
+    if (!merchantId) return;
     try {
       const [merchantRes, notifyRes] = await Promise.all([
-        merchantApi.getById(id),
-        merchantApi.getNotifications(id),
+        merchantApi.getById(merchantId),
+        merchantApi.getNotifications(merchantId),
       ]);
       setMerchant(merchantRes.data);
       setNotifications(notifyRes.data.data);
+
+      // If merchant has been registered, actively query registration status
+      if (merchantRes.data.registrationRequestId) {
+        fetchRegistrationStatus(merchantId);
+      }
     } catch (err) {
       console.error('Failed to fetch merchant:', err);
       message.error('Failed to load merchant details');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [merchantId, fetchRegistrationStatus]);
 
   useEffect(() => {
     fetchMerchant();
   }, [fetchMerchant]);
 
   // WebSocket: auto-refresh on notifications (debounced, last one wins)
-  useWebSocket(id || null, () => {
+  useWebSocket(merchantId || null, () => {
     clearTimeout(fetchTimerRef.current);
     fetchTimerRef.current = setTimeout(() => {
       fetchMerchant();
@@ -55,9 +90,9 @@ export default function MerchantDetail() {
   }, []);
 
   const handleOffboard = async () => {
-    if (!id) return;
+    if (!merchantId) return;
     try {
-      await merchantApi.offboard(id);
+      await merchantApi.offboard(merchantId);
       message.success('Merchant offboarded successfully');
       fetchMerchant();
     } catch (err) {
@@ -70,6 +105,10 @@ export default function MerchantDetail() {
     return <Spin size="large" style={{ display: 'block', marginTop: 100, textAlign: 'center' }} />;
   }
 
+  if (!merchantId) {
+    return <Alert message="No merchant selected. Please select a store from the dropdown above." type="info" showIcon />;
+  }
+
   if (!merchant) {
     return <Alert message="Merchant not found" type="error" />;
   }
@@ -77,7 +116,7 @@ export default function MerchantDetail() {
   const isOffboarded = merchant.status === 'OFFBOARDED';
 
   const tabItems = [
-    { key: 'overview', label: 'Overview', children: <OverviewTab merchant={merchant} notifications={notifications} /> },
+    { key: 'overview', label: 'Overview', children: <OverviewTab merchant={merchant} notifications={notifications} registrationStatus={registrationStatus} registrationStatusLoading={registrationStatusLoading} /> },
     { key: 'kyc', label: 'KYC', children: <KycTab merchant={merchant} onRefresh={fetchMerchant} /> },
     { key: 'payment-methods', label: 'Payment Methods', children: <PaymentMethodsTab merchant={merchant} onRefresh={fetchMerchant} /> },
     { key: 'notifications', label: 'Notifications', children: <NotificationsTab merchantId={merchant.id} /> },
@@ -85,8 +124,8 @@ export default function MerchantDetail() {
 
   return (
     <div>
-      <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/merchants')} style={{ padding: 0, marginBottom: 8 }}>
-        Back to Merchants
+      <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/')} style={{ padding: 0, marginBottom: 8 }}>
+        Back to Home
       </Button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
