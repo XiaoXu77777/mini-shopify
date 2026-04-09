@@ -323,6 +323,8 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
       return;
     }
 
+    console.log('[WF] exchange-token called with authCode:', authCode);
+
     // In mock mode, generate mock tokens
     if (config.mockMode) {
       const accessToken = `WF_ACCESS_TOKEN_${uuidv4().replace(/-/g, '')}`;
@@ -342,7 +344,7 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
     // POST /amsin/api/v1/oauth/applyToken
     // Reference: https://docs.antom.com/ac/isv/apply_token_wf
     try {
-      const baseUrl = 'https://developers.worldfirst.com.cn';
+      const baseUrl = 'https://open-sea-worldfirst.com';
       const tokenUrl = `${baseUrl}/amsin/api/v1/oauth/applyToken`;
       
       // Build request body with proper signature
@@ -361,15 +363,22 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
         JSON.stringify(requestBody),
         config.antom.privateKey
       );
+
+
+      const requestHeaders = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'client-id': config.antom.clientId,
+        'Request-Time': requestTime,
+        'Signature': buildSignatureHeader(signature),
+      };
       
+      console.log('[WF] Token exchange request URL:', tokenUrl);
+      console.log('[WF] Token exchange request headers:', JSON.stringify(requestHeaders, null, 2));
+      console.log('[WF] Token exchange request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(tokenUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'client-id': config.antom.clientId,
-          'Request-Time': requestTime,
-          'Signature': buildSignatureHeader(signature),
-        },
+        headers: requestHeaders,
         body: JSON.stringify(requestBody),
       });
 
