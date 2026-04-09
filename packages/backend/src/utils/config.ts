@@ -18,6 +18,11 @@ export const config = {
     sandbox: process.env.ANTOM_SANDBOX !== 'false', // 默认 true，生产环境需显式设为 false
   },
 
+  // Temporary workaround: KYB fileUrl cannot be used directly in register requests.
+  // When enabled, all fileUrl values in register requests will be replaced with the proxy URL.
+  useProxyFileUrl: process.env.USE_PROXY_FILE_URL !== 'false', // default true
+  proxyFileUrl: process.env.PROXY_FILE_URL || 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+
   mockMode: process.env.MOCK_MODE === 'true',
   mockNotifyDelayMs: parseInt(process.env.MOCK_NOTIFY_DELAY_MS || '1500', 10),
   notifyCallbackUrl: process.env.NOTIFY_CALLBACK_URL || '',

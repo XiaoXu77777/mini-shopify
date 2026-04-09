@@ -245,8 +245,8 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     // kycOverrides from frontend takes priority over KYB data for user-editable fields
     const overrides = kycOverrides || {};
     const kycPayload = {
-      // From KYB data
-      legalName: String(kybData.legalName || ''),
+      // From KYB data (legalName uses shopName from merchant creation)
+      legalName: merchant.shopName,
       companyType: String(kybData.companyType || ''),
       certificateType: String(kybData.certificateType || ''),
       certificateNo: String(kybData.certificateNo || ''),

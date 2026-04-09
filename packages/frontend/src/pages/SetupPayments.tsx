@@ -122,6 +122,16 @@ export default function SetupPayments() {
   const [kycData, setKycData] = useState<KycData>(emptyKycData);
   const [wfAuthData, setWfAuthData] = useState<{ accessToken: string; customerId: string; wfAccountId: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [merchantName, setMerchantName] = useState('');
+
+  // Fetch merchant info to get shopName for legalName
+  useEffect(() => {
+    if (id) {
+      merchantApi.getById(id).then(res => {
+        setMerchantName(res.data.shopName || '');
+      }).catch(() => {});
+    }
+  }, [id]);
 
   // Check for OAuth callback
   useEffect(() => {
@@ -164,8 +174,9 @@ export default function SetupPayments() {
         const kyb = kybRes.data.kybData as Record<string, unknown>;
         
         // Pre-fill KYC form with KYB data
+        // legalName uses shopName from merchant creation, not KYB data
         setKycData({
-          legalName: String(kyb.legalName || ''),
+          legalName: merchantName || String(kyb.legalName || ''),
           companyType: String(kyb.companyType || ''),
           certificateType: String(kyb.certificateType || ''),
           certificateNo: String(kyb.certificateNo || ''),
@@ -309,14 +320,14 @@ export default function SetupPayments() {
         setPhase('done');
         message.success('Shopify Payments setup complete!');
       } else {
-        setPhase('error');
-        setErrorMessage(result.data.error || 'Failed to setup payments');
+        // Stay on kyc-form so user can fix and resubmit
+        message.error(result.data.error || 'Failed to setup payments. Please review your information and try again.');
       }
     } catch (err: unknown) {
       console.error('Setup payments error:', err);
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      setPhase('error');
-      setErrorMessage(axiosErr?.response?.data?.error || 'Failed to setup payments. Please try again.');
+      // Stay on kyc-form so user can fix and resubmit
+      message.error(axiosErr?.response?.data?.error || 'Failed to setup payments. Please review your information and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -400,10 +411,10 @@ export default function SetupPayments() {
 
           <Form layout="vertical" style={{ maxWidth: 800 }}>
             <Title level={5}>Company Information</Title>
-            <Form.Item label="Legal Name" required>
+            <Form.Item label="Legal Name" required tooltip="Auto-filled from your shop name">
               <Input
                 value={kycData.legalName}
-                onChange={(e) => updateKycField('legalName', e.target.value)}
+                disabled
                 placeholder="Company legal name"
               />
             </Form.Item>
