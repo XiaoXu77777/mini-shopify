@@ -373,16 +373,16 @@ function buildRegisterRequest(data: RegisterData): AntomRegisterRequest {
     });
   }
 
-  // Build settlementInfoList (top-level, differs by WF account presence)
-  const settlementInfoList: AntomRegisterRequest['settlementInfoList'] = data.merchant.wfAccountId
-    ? [
-        {
-          settlementAccountType: 'WORLD_FIRST_ACCOUNT',
-          settlementAccountInfo: { accountNo: data.merchant.wfAccountId },
-          settlementCurrency: data.merchant.settlementCurrency,
-        },
-      ]
-    : [{ settlementCurrency: data.merchant.settlementCurrency }];
+  // Build settlementInfoList (top-level, settlementAccountType is always WORLD_FIRST_ACCOUNT)
+  const settlementInfoList: AntomRegisterRequest['settlementInfoList'] = [
+    {
+      settlementAccountType: 'WORLD_FIRST_ACCOUNT',
+      ...(data.merchant.wfAccountId
+        ? { settlementAccountInfo: { accountNo: data.merchant.wfAccountId } }
+        : {}),
+      settlementCurrency: data.merchant.settlementCurrency,
+    },
+  ];
 
   // Build paymentMethodActivationRequests
   const paymentMethodActivationRequests = data.paymentMethodTypes.map((pmType) => ({

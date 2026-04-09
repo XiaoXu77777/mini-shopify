@@ -215,7 +215,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
   let currentStep: 'queryKyb' | 'fillKyc' | 'register' = 'queryKyb';
   try {
     const id = paramStr(req.params.id);
-    const { wfAccountId, accessToken, customerId } = req.body;
+    const { wfAccountId, accessToken, customerId, kycOverrides } = req.body;
 
     if (!accessToken) {
       res.status(400).json({ success: false, error: 'accessToken is required' });
@@ -242,6 +242,8 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     currentStep = 'fillKyc';
 
     // Step 3: Fill KYC info from KYB data + extra fields (Shopify auto-fills, merchant doesn't need to input)
+    // kycOverrides from frontend takes priority over KYB data for user-editable fields
+    const overrides = kycOverrides || {};
     const kycPayload = {
       // From KYB data
       legalName: String(kybData.legalName || ''),
@@ -256,16 +258,17 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
       address1: String(kybData.address1 || ''),
       address2: String(kybData.address2 || ''),
       zipCode: String(kybData.zipCode || ''),
-      mcc: String(kybData.mcc || ''),
-      doingBusinessAs: String(kybData.doingBusinessAs || ''),
-      websiteUrl: String(kybData.websiteUrl || ''),
-      englishName: String(kybData.englishName || ''),
-      serviceDescription: String(kybData.serviceDescription || ''),
+      // User-editable fields: prefer frontend overrides over KYB data
+      mcc: overrides.mcc || String(kybData.mcc || ''),
+      doingBusinessAs: overrides.doingBusinessAs || String(kybData.doingBusinessAs || ''),
+      websiteUrl: overrides.websiteUrl || String(kybData.websiteUrl || ''),
+      englishName: overrides.englishName || String(kybData.englishName || ''),
+      serviceDescription: overrides.serviceDescription || String(kybData.serviceDescription || ''),
       // Extra fields auto-filled by Shopify (not from KYB)
-      appName: merchant.shopName,
-      merchantBrandName: String(kybData.merchantBrandName || merchant.shopName),
-      contactType: String(kybData.contactType || ''),
-      contactInfo: String(kybData.contactInfo || merchant.email),
+      appName: overrides.appName || merchant.shopName,
+      merchantBrandName: overrides.merchantBrandName || String(kybData.merchantBrandName || merchant.shopName),
+      contactType: overrides.contactType || String(kybData.contactType || ''),
+      contactInfo: overrides.contactInfo || String(kybData.contactInfo || merchant.email),
       legalRepName: String(kybData.legalRepName || ''),
       legalRepIdType: String(kybData.legalRepIdType || ''),
       legalRepIdNo: String(kybData.legalRepIdNo || ''),

@@ -287,10 +287,22 @@ export default function SetupPayments() {
     setSubmitting(true);
     try {
       // Use setup-payments API to complete the full flow
+      // Include user-edited KYC fields so backend uses them instead of raw KYB data
       const result = await merchantApi.setupPayments(id, {
         wfAccountId: wfAuthData.wfAccountId,
         accessToken: wfAuthData.accessToken,
         customerId: wfAuthData.customerId,
+        kycOverrides: {
+          mcc: kycData.mcc,
+          doingBusinessAs: kycData.doingBusinessAs,
+          websiteUrl: kycData.websiteUrl,
+          appName: kycData.appName,
+          merchantBrandName: kycData.merchantBrandName,
+          englishName: kycData.englishName,
+          serviceDescription: kycData.serviceDescription,
+          contactType: kycData.contactType,
+          contactInfo: kycData.contactInfo,
+        },
       });
 
       if (result.data.success) {
