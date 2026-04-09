@@ -1,8 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { antomService } from '../services/antomService';
+import { config } from '../utils/config';
 
 const router = Router();
+
+// In-memory store for OAuth state (in production, use Redis or database)
+const oauthStateStore = new Map<string, { merchantId: string; timestamp: number }>();
+
+// Clean up old states every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [state, data] of oauthStateStore.entries()) {
+    if (now - data.timestamp > 10 * 60 * 1000) { // 10 minutes expiry
+      oauthStateStore.delete(state);
+    }
+  }
+}, 5 * 60 * 1000);
 
 // Mock WF KYB data that will be returned on OAuth callback
 // Field names must match KYC form fields in frontend WizardData
@@ -230,6 +244,188 @@ router.post('/query-kyb', async (req: Request, res: Response) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to query KYB information' 
+    });
+  }
+});
+
+// POST /api/wf/oauth-url - Get WorldFirst OAuth URL
+router.post('/oauth-url', async (req: Request, res: Response) => {
+  try {
+    const { merchantId } = req.body;
+    
+    if (!merchantId) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'merchantId is required' 
+      });
+      return;
+    }
+
+    // Generate unique state and request IDs
+    const state = uuidv4();
+    const requestId = uuidv4();
+    
+    // Store state with merchantId
+    oauthStateStore.set(state, { merchantId, timestamp: Date.now() });
+
+    // Build OAuth URL with required parameters
+    // Note: In production, these values should come from environment variables or database
+    const oauthClientId = config.wf?.oauthClientId || '2188120328356641';
+    const referenceCustomerId = `MERCHANT_${merchantId}`;
+    
+    // Build redirect URL (should point to frontend callback)
+    const redirectUrl = `${config.frontendUrl || 'http://localhost:5173'}/merchants/${merchantId}/setup-payments`;
+    
+    // Build extendInfo with store details
+    const extendInfo = {
+      storeName: 'MiniShopify Store',
+      currency: 'USD,GBP,EUR,CAD,CNH,AUD,SGD,JPY,NZD,HKD',
+    };
+
+    // Build the OAuth URL
+    const baseUrl = 'https://portal.worldfirst.com/auth/shopifyMock';
+    const params = new URLSearchParams({
+      oauthClientId,
+      scopes: 'SCOPE_USER_ACCOUNT_CREATE,SCOPE_AUTH_QUERY_MERCHANT_INFO',
+      extendInfo: JSON.stringify(extendInfo),
+      referenceCustomerId,
+      requestId,
+      redirectURL: redirectUrl,
+      state,
+      signature: 'wMSXz76VJCpn7zYlI8E%2B%2Bw%3D%3D', // In production, generate proper signature
+    });
+
+    const oauthUrl = `${baseUrl}?${params.toString()}`;
+    
+    res.json({ 
+      success: true, 
+      oauthUrl 
+    });
+  } catch (err) {
+    console.error('[WF] Generate OAuth URL error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate OAuth URL' 
+    });
+  }
+});
+
+// POST /api/wf/exchange-token - Exchange authCode for accessToken
+router.post('/exchange-token', async (req: Request, res: Response) => {
+  try {
+    const { authCode } = req.body;
+    
+    if (!authCode) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'authCode is required' 
+      });
+      return;
+    }
+
+    // In mock mode, generate mock tokens
+    if (config.mockMode) {
+      const accessToken = `WF_ACCESS_TOKEN_${uuidv4().replace(/-/g, '')}`;
+      const customerId = `CUSTOMER_${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
+      const wfAccountId = `WF_${uuidv4().substring(0, 8).toUpperCase()}`;
+      
+      res.json({ 
+        success: true, 
+        accessToken,
+        customerId,
+        wfAccountId
+      });
+      return;
+    }
+
+    // In production, call WorldFirst API to exchange authCode for accessToken
+    // POST https://portal.worldfirst.com/api/oauth/token
+    // Reference: https://docs.antom.com/ac/isv/apply_token_wf
+    try {
+      const tokenUrl = 'https://portal.worldfirst.com/api/oauth/token';
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grantType: 'AUTHORIZATION_CODE',
+          authCode,
+          clientId: config.wf?.oauthClientId,
+          clientSecret: config.wf?.oauthClientSecret,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Token exchange failed: ${response.status}`);
+      }
+
+      const data = await response.json() as { accessToken: string; customerId: string; wfAccountId: string };
+      
+      res.json({ 
+        success: true, 
+        accessToken: data.accessToken,
+        customerId: data.customerId,
+        wfAccountId: data.wfAccountId
+      });
+    } catch (apiErr) {
+      console.error('[WF] Token exchange API error:', apiErr);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to exchange authorization code' 
+      });
+    }
+  } catch (err) {
+    console.error('[WF] Exchange token error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to exchange authorization code' 
+    });
+  }
+});
+
+// GET /api/wf/oauth-callback - Handle OAuth callback from WorldFirst
+router.get('/oauth-callback', async (req: Request, res: Response) => {
+  try {
+    const { authCode, state, error } = req.query;
+    
+    if (error) {
+      res.status(400).json({ 
+        success: false, 
+        error: `OAuth error: ${error}` 
+      });
+      return;
+    }
+
+    if (!authCode || !state) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'authCode and state are required' 
+      });
+      return;
+    }
+
+    // Verify state
+    const stateData = oauthStateStore.get(state as string);
+    if (!stateData) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Invalid or expired state' 
+      });
+      return;
+    }
+
+    // Clean up used state
+    oauthStateStore.delete(state as string);
+
+    // Redirect to frontend with authCode
+    const redirectUrl = `${config.frontendUrl || 'http://localhost:5173'}/merchants/${stateData.merchantId}/setup-payments?authCode=${authCode}&state=${state}`;
+    res.redirect(redirectUrl);
+  } catch (err) {
+    console.error('[WF] OAuth callback error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process OAuth callback' 
     });
   }
 });

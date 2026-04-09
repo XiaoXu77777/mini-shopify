@@ -76,6 +76,20 @@ export const merchantApi = {
     });
   },
 
+  // Get WorldFirst OAuth URL
+  getWfOAuthUrl(merchantId: string) {
+    return api.post<{ success: boolean; oauthUrl?: string; error?: string }>('/wf/oauth-url', {
+      merchantId,
+    });
+  },
+
+  // Exchange authCode for accessToken
+  exchangeWfToken(authCode: string) {
+    return api.post<{ success: boolean; accessToken?: string; customerId?: string; wfAccountId?: string; error?: string }>('/wf/exchange-token', {
+      authCode,
+    });
+  },
+
   // Combined WF auth + KYB query + KYC fill + register
   setupPayments(merchantId: string, data: { wfAccountId: string; accessToken: string; customerId: string }) {
     return api.post<{ success: boolean; registrationRequestId?: string; failedStep?: string; resultInfo?: { resultStatus: string; resultCode: string }; error?: string }>(
