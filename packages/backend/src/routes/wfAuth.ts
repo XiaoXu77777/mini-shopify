@@ -373,11 +373,25 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
         body: JSON.stringify(requestBody),
       });
 
+      const responseText = await response.text();
+      const contentType = response.headers.get('content-type') || '';
+      
+      console.log(`[WF] Token exchange response: status=${response.status}, content-type=${contentType}, body=${responseText.substring(0, 500)}`);
+      
       if (!response.ok) {
-        throw new Error(`Token exchange failed: ${response.status}`);
+        throw new Error(`Token exchange failed: status=${response.status}, body=${responseText.substring(0, 200)}`);
       }
 
-      const data = await response.json() as { accessToken: string; customerId: string; wfAccountId: string };
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Token exchange returned non-JSON response: content-type=${contentType}, body=${responseText.substring(0, 200)}`);
+      }
+
+      let data: { accessToken: string; customerId: string; wfAccountId: string };
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        throw new Error(`Token exchange returned invalid JSON: ${responseText.substring(0, 200)}`);
+      }
       
       res.json({ 
         success: true, 
