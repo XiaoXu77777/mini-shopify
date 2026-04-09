@@ -157,7 +157,7 @@ export default function SetupPayments() {
       const { accessToken = '', customerId = '', wfAccountId = '' } = tokenRes.data;
       setWfAuthData({ accessToken, customerId, wfAccountId });
 
-      // Query KYB info
+      // Query KYB info (customerId may be empty for WF OAuth flow)
       const kybRes = await merchantApi.queryWfKybInfo(accessToken, customerId);
       
       if (kybRes.data.success && kybRes.data.kybData) {

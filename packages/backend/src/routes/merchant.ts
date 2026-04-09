@@ -217,8 +217,8 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     const id = paramStr(req.params.id);
     const { wfAccountId, accessToken, customerId } = req.body;
 
-    if (!wfAccountId || !accessToken || !customerId) {
-      res.status(400).json({ success: false, error: 'wfAccountId, accessToken, and customerId are required' });
+    if (!accessToken) {
+      res.status(400).json({ success: false, error: 'accessToken is required' });
       return;
     }
 
@@ -232,7 +232,7 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
     await merchantService.updateWfAccount(id, wfAccountId);
 
     // Step 2: Query KYB info from Antom using WF access token
-    const kybResult = await antomService.queryKybInfo(accessToken, customerId);
+    const kybResult = await antomService.queryKybInfo(accessToken, customerId || '');
     if (!kybResult.success || !kybResult.kybData) {
       res.status(400).json({ success: false, failedStep: 'queryKyb', error: kybResult.error || 'Failed to query KYB information' });
       return;

@@ -538,8 +538,8 @@ export const antomService = {
     kybData?: Record<string, unknown>;
     error?: string;
   }> {
-    //测试账号没那么多wf账号，都走mock
-    if (1) {
+
+    if (config.mockMode) {
       // Mock KYB data for demo
       return {
         success: true,
@@ -697,32 +697,78 @@ export const antomService = {
     }
 
     try {
-      const requestBody = {
-        accessToken,
-        customerId,
+      // queryKybInfo uses WF credentials, not Antom credentials
+      const baseUrl = 'https://open-sea.worldfirst.com';
+      const apiPath = QUERY_KYB_PATH;
+      const url = `${baseUrl}${apiPath}`;
+
+      const requestBody: Record<string, string> = { accessToken };
+      if (customerId) {
+        requestBody.customerId = customerId;
+      }
+
+      const requestTime = new Date().toISOString().replace('Z', '+00:00');
+      const bodyStr = JSON.stringify(requestBody);
+
+      const signature = signRequest(
+        apiPath,
+        config.wf.oauthClientID,
+        requestTime,
+        bodyStr,
+        config.wf.privateKey
+      );
+      const signatureHeader = buildSignatureHeader(signature);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'client-id': config.wf.oauthClientID,
+        'Request-Time': requestTime,
+        'Signature': signatureHeader,
       };
 
-      const response = await callWithRetry({
-        path: QUERY_KYB_PATH,
-        body: requestBody,
+      console.log(`[WF] queryKybInfo >>> ${url}`);
+      console.log(`[WF] queryKybInfo >>> headers:`, JSON.stringify(headers, null, 2));
+      console.log(`[WF] queryKybInfo >>> body: ${bodyStr}`);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: bodyStr,
       });
 
-      const status = response.resultInfo?.resultStatus || response.result?.resultStatus;
+      const responseText = await response.text();
+      console.log(`[WF] queryKybInfo <<< status=${response.status}, body=${responseText.substring(0, 1000)}`);
+
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(`queryKybInfo returned invalid JSON: ${responseText.substring(0, 200)}`);
+      }
+
+      const result = data.result as { resultStatus?: string; resultCode?: string; resultMessage?: string } | undefined;
+      const status = result?.resultStatus;
+
       if (status === 'S') {
-        return {
-          success: true,
-          kybData: (response as Record<string, unknown>).customer 
-            ? ((response as Record<string, unknown>).customer as Record<string, unknown>).businessPartner as Record<string, unknown>
-            : response as unknown as Record<string, unknown>,
-        };
+        // Extract KYB data from response - try customer.businessPartner first, fallback to full response
+        let kybData: Record<string, unknown>;
+        if (data.customer && typeof data.customer === 'object') {
+          const customer = data.customer as Record<string, unknown>;
+          kybData = (customer.businessPartner as Record<string, unknown>) || customer;
+        } else {
+          // Exclude result field from kybData
+          const { result: _result, ...rest } = data;
+          kybData = rest;
+        }
+        return { success: true, kybData };
       } else {
-        return {
-          success: false,
-          error: response.resultInfo?.resultMessage || 'Failed to query KYB info',
-        };
+        const code = result?.resultCode || 'UNKNOWN';
+        const msg = result?.resultMessage || 'Failed to query KYB info';
+        console.error(`[WF] queryKybInfo business error: ${code} - ${msg}`);
+        return { success: false, error: `${code} - ${msg}` };
       }
     } catch (error) {
-      console.error('[Antom] Query KYB error:', error);
+      console.error('[WF] queryKybInfo error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

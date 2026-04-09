@@ -218,15 +218,15 @@ router.post('/query-kyb', async (req: Request, res: Response) => {
   try {
     const { accessToken, customerId } = req.body;
     
-    if (!accessToken || !customerId) {
+    if (!accessToken) {
       res.status(400).json({ 
         success: false, 
-        error: 'accessToken and customerId are required' 
+        error: 'accessToken is required' 
       });
       return;
     }
 
-    const result = await antomService.queryKybInfo(accessToken, customerId);
+    const result = await antomService.queryKybInfo(accessToken, customerId || '');
     
     if (result.success) {
       res.json({ 
@@ -395,18 +395,41 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
         throw new Error(`Token exchange returned non-JSON response: content-type=${contentType}, body=${responseText.substring(0, 200)}`);
       }
 
-      let data: { accessToken: string; customerId: string; wfAccountId: string };
+      let data: { 
+        accessToken?: string; 
+        customerId?: string; 
+        wfAccountId?: string;
+        expireTime?: string;
+        result?: { resultStatus: string; resultCode: string; resultMessage: string };
+      };
       try {
         data = JSON.parse(responseText);
       } catch (parseErr) {
         throw new Error(`Token exchange returned invalid JSON: ${responseText.substring(0, 200)}`);
       }
+
+      // Check business-level result status
+      if (data.result?.resultStatus !== 'S') {
+        const code = data.result?.resultCode || 'UNKNOWN';
+        const msg = data.result?.resultMessage || 'Unknown error';
+        console.error(`[WF] Token exchange business error: ${code} - ${msg}`);
+        res.status(400).json({ 
+          success: false, 
+          error: `Token exchange failed: ${code} - ${msg}` 
+        });
+        return;
+      }
+
+      if (!data.accessToken) {
+        throw new Error('Token exchange response missing accessToken');
+      }
       
       res.json({ 
         success: true, 
         accessToken: data.accessToken,
-        customerId: data.customerId,
-        wfAccountId: data.wfAccountId
+        // customerId and wfAccountId may not be present in applyToken response
+        customerId: data.customerId || '',
+        wfAccountId: data.wfAccountId || '',
       });
     } catch (apiErr) {
       console.error('[WF] Token exchange API error:', apiErr);
