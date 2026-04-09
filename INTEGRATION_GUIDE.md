@@ -262,7 +262,7 @@ ANTOM_PUBLIC_KEY=antom_public_key
   "settlementInfoList": [{
     "settlementAccountType": "WORLD_FIRST_ACCOUNT",
     "settlementAccountInfo": { "accountNo": "WF账户号" },
-    "settlementCurrency": "SGD"
+    "settlementCurrency": "HKD"
   }]
 }
 ```
@@ -271,7 +271,7 @@ ANTOM_PUBLIC_KEY=antom_public_key
 ```json
 {
   "settlementInfoList": [{
-    "settlementCurrency": "SGD"
+    "settlementCurrency": "HKD"
   }]
 }
 ```
@@ -424,7 +424,7 @@ ANTOM_PUBLIC_KEY=
 ANTOM_BASE_URL=https://open-sea-global.alipay.com
 ANTOM_AGENT_TOKEN=
 PARENT_MERCHANT_ID=2188120041577055
-DEFAULT_SETTLEMENT_CURRENCY=SGD
+DEFAULT_SETTLEMENT_CURRENCY=HKD
 
 # Mock 模式
 MOCK_MODE=true
