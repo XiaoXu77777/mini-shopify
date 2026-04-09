@@ -128,10 +128,15 @@ export default function SetupPayments() {
   useEffect(() => {
     if (id) {
       merchantApi.getById(id).then(res => {
+        // If merchant already submitted register, redirect to detail page
+        if (res.data.registrationRequestId) {
+          navigate(`/merchants/${id}`, { replace: true });
+          return;
+        }
         setMerchantName(res.data.shopName || '');
       }).catch(() => {});
     }
-  }, [id]);
+  }, [id, navigate]);
 
   // Check for OAuth callback
   useEffect(() => {

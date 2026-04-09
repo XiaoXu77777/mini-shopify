@@ -9,6 +9,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { merchantApi } from '../../services/merchantApi';
+import { KycStatusTag } from '../StatusTags';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -135,25 +136,30 @@ export default function AppLayout() {
           }}
         >
           {/* 店铺切换下拉菜单 */}
-          <Dropdown {...storeDropdownProps}>
-            <div
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 12px',
-                borderRadius: 4,
-                border: '1px solid #d9d9d9',
-                transition: 'all 0.3s',
-              }}
-            >
-              <ShopOutlined />
-              <Text>
-                {currentMerchant ? currentMerchant.shopName : 'Select Store'}
-              </Text>
-            </div>
-          </Dropdown>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Dropdown {...storeDropdownProps}>
+              <div
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '4px 12px',
+                  borderRadius: 4,
+                  border: '1px solid #d9d9d9',
+                  transition: 'all 0.3s',
+                }}
+              >
+                <ShopOutlined />
+                <Text>
+                  {currentMerchant ? currentMerchant.shopName : 'Select Store'}
+                </Text>
+              </div>
+            </Dropdown>
+            {currentMerchant && (
+              <KycStatusTag status={currentMerchant.kycStatus} />
+            )}
+          </div>
 
           {/* Mock Mode 标识 */}
           {config && (
