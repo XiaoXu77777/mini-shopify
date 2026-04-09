@@ -339,21 +339,38 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
     }
 
     // In production, call WorldFirst API to exchange authCode for accessToken
-    // POST https://portal.worldfirst.com/api/oauth/token
+    // POST /amsin/api/v1/oauth/applyToken
     // Reference: https://docs.antom.com/ac/isv/apply_token_wf
     try {
-      const tokenUrl = 'https://portal.worldfirst.com/api/oauth/token';
+      const baseUrl = 'https://developers.worldfirst.com.cn';
+      const tokenUrl = `${baseUrl}/amsin/api/v1/oauth/applyToken`;
+      
+      // Build request body with proper signature
+      const requestTime = new Date().toISOString().replace('Z', '+00:00');
+      const requestBody = {
+        authCode,
+        grantType: 'AUTHORIZATION_CODE',
+      };
+      
+      // Import crypto functions for signing
+      const { signRequest, buildSignatureHeader } = await import('../utils/crypto');
+      const signature = signRequest(
+        '/amsin/api/v1/oauth/applyToken',
+        config.antom.clientId,
+        requestTime,
+        JSON.stringify(requestBody),
+        config.antom.privateKey
+      );
+      
       const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+          'client-id': config.antom.clientId,
+          'Request-Time': requestTime,
+          'Signature': buildSignatureHeader(signature),
         },
-        body: JSON.stringify({
-          grantType: 'AUTHORIZATION_CODE',
-          authCode,
-          clientId: config.wf?.oauthClientId,
-          clientSecret: config.wf?.oauthClientSecret,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
