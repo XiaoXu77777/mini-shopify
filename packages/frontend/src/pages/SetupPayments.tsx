@@ -179,9 +179,9 @@ export default function SetupPayments() {
         const kyb = kybRes.data.kybData as Record<string, unknown>;
         
         // Pre-fill KYC form with KYB data
-        // legalName uses shopName from merchant creation, not KYB data
+        // legalName uses KYB query result (editable by user)
         setKycData({
-          legalName: merchantName || String(kyb.legalName || ''),
+          legalName: String(kyb.legalName || ''),
           companyType: String(kyb.companyType || ''),
           certificateType: String(kyb.certificateType || ''),
           certificateNo: String(kyb.certificateNo || ''),
@@ -309,15 +309,31 @@ export default function SetupPayments() {
         accessToken: wfAuthData.accessToken,
         customerId: wfAuthData.customerId,
         kycOverrides: {
+          legalName: kycData.legalName,
+          companyType: kycData.companyType,
+          certificateType: kycData.certificateType,
+          certificateNo: kycData.certificateNo,
+          branchName: kycData.branchName,
+          companyUnit: kycData.companyUnit,
+          addressRegion: kycData.addressRegion,
+          addressState: kycData.addressState,
+          addressCity: kycData.addressCity,
+          address1: kycData.address1,
+          address2: kycData.address2,
+          zipCode: kycData.zipCode,
           mcc: kycData.mcc,
           doingBusinessAs: kycData.doingBusinessAs,
           websiteUrl: kycData.websiteUrl,
-          appName: kycData.appName,
+          appName: merchantName,
           merchantBrandName: kycData.merchantBrandName,
           englishName: kycData.englishName,
           serviceDescription: kycData.serviceDescription,
           contactType: kycData.contactType,
           contactInfo: kycData.contactInfo,
+          legalRepName: kycData.legalRepName,
+          legalRepIdType: kycData.legalRepIdType,
+          legalRepIdNo: kycData.legalRepIdNo,
+          legalRepDob: kycData.legalRepDob,
         },
       });
 
@@ -416,10 +432,10 @@ export default function SetupPayments() {
 
           <Form layout="vertical" style={{ maxWidth: 800 }}>
             <Title level={5}>Company Information</Title>
-            <Form.Item label="Legal Name" required tooltip="Auto-filled from your shop name">
+            <Form.Item label="Legal Name" required tooltip="Pre-filled from KYB query result, you can modify it">
               <Input
                 value={kycData.legalName}
-                disabled
+                onChange={(e) => updateKycField('legalName', e.target.value)}
                 placeholder="Company legal name"
               />
             </Form.Item>
@@ -519,10 +535,10 @@ export default function SetupPayments() {
 
             <Divider />
             <Title level={5}>Business Information</Title>
-            <Form.Item label="App / Store Name" required>
+            <Form.Item label="App / Store Name" required tooltip="Auto-filled from your shop name">
               <Input
-                value={kycData.appName}
-                onChange={(e) => updateKycField('appName', e.target.value)}
+                value={merchantName}
+                disabled
                 placeholder="Application or store name"
               />
             </Form.Item>

@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { merchantApi } from '../services/merchantApi';
 
 const { Title, Text } = Typography;
 
@@ -38,16 +39,28 @@ export default function Home() {
   const navigate = useNavigate();
   const { currentMerchant } = useAppContext();
 
-  const handleSetupPayments = () => {
+  const handleSetupPayments = async () => {
     if (!currentMerchant) {
       message.warning('Please select a store first from the dropdown above, or create a new store.');
       return;
     }
-    if (currentMerchant.registrationRequestId) {
-      // Already submitted, go to merchant detail
-      navigate(`/merchants/${currentMerchant.id}`);
-    } else {
-      navigate(`/merchants/${currentMerchant.id}/setup-payments`);
+    try {
+      // Fetch latest merchant data from backend to check registration status
+      const res = await merchantApi.getById(currentMerchant.id);
+      const latestMerchant = res.data;
+      if (latestMerchant.registrationRequestId) {
+        // Already submitted, go to merchant detail
+        navigate(`/merchants/${currentMerchant.id}`);
+      } else {
+        navigate(`/merchants/${currentMerchant.id}/setup-payments`);
+      }
+    } catch {
+      // Fallback: use cached data
+      if (currentMerchant.registrationRequestId) {
+        navigate(`/merchants/${currentMerchant.id}`);
+      } else {
+        navigate(`/merchants/${currentMerchant.id}/setup-payments`);
+      }
     }
   };
 

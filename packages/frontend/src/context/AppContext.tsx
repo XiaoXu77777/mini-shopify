@@ -37,7 +37,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshMerchants = async () => {
     try {
       const res = await merchantApi.list();
-      setMerchants(res.data.data);
+      const freshMerchants = res.data.data;
+      setMerchants(freshMerchants);
+      // Sync currentMerchant with latest data from server
+      if (currentMerchant) {
+        const updated = freshMerchants.find(m => m.id === currentMerchant.id);
+        if (updated) {
+          setCurrentMerchant(updated);
+        }
+      }
     } catch (err) {
       console.error('Failed to load merchants:', err);
     }
