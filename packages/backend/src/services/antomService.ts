@@ -465,26 +465,6 @@ export const antomService = {
       requestBody.offboardingRequestId = data.offboardingRequestId;
     }
 
-    if (config.mockMode) {
-      console.log(`[Antom][Mock] inquireRegistrationStatus >>> request:`, JSON.stringify(requestBody, null, 2));
-      // In mock mode, return current status from DB (handled at route level)
-      const mockResponse = {
-        resultInfo: {
-          resultStatus: 'S',
-          resultCode: 'SUCCESS',
-          resultMessage: 'success',
-        },
-        registrationResult: {
-          registrationStatus: 'PROCESSING',
-          registrationRequestId: data.registrationRequestId,
-          parentMerchantId,
-          referenceMerchantId: data.referenceMerchantId,
-        },
-      };
-      console.log(`[Antom][Mock] inquireRegistrationStatus <<< response:`, JSON.stringify(mockResponse, null, 2));
-      return mockResponse;
-    }
-
     return callWithRetry({
       path: INQUIRE_REGISTRATION_PATH,
       body: requestBody as unknown as Record<string, unknown>,
@@ -513,24 +493,6 @@ export const antomService = {
       },
     };
 
-    if (config.mockMode) {
-      console.log(`[Antom][Mock] offboard >>> request:`, JSON.stringify(requestBody, null, 2));
-      const mockResponse = {
-        resultInfo: {
-          resultStatus: 'S',
-          resultCode: 'SUCCESS',
-          resultMessage: 'success',
-        },
-        merchantOffboardingResult: {
-          offboardingStatus: 'PROCESSING',
-          offboardingRequestId: data.offboardingRequestId,
-          parentMerchantId,
-          referenceMerchantId: data.referenceMerchantId,
-        },
-      };
-      console.log(`[Antom][Mock] offboard <<< response:`, JSON.stringify(mockResponse, null, 2));
-      return mockResponse;
-    }
 
     return callWithRetry({
       path: OFFBOARD_PATH,
@@ -542,18 +504,6 @@ export const antomService = {
    * Deactivate a payment method.
    */
   async deactivate(registrationRequestId: string, paymentMethodType: string): Promise<AntomResponse> {
-    if (config.mockMode) {
-      console.log(`[Antom][Mock] deactivate >>> request:`, JSON.stringify({ registrationRequestId, paymentMethodType }, null, 2));
-      const mockResponse = {
-        resultInfo: {
-          resultStatus: 'S',
-          resultCode: 'SUCCESS',
-          resultMessage: 'success',
-        },
-      };
-      console.log(`[Antom][Mock] deactivate <<< response:`, JSON.stringify(mockResponse, null, 2));
-      return mockResponse;
-    }
 
     return callWithRetry({
       path: DEACTIVATE_PATH,
