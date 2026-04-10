@@ -75,10 +75,12 @@ export default function MerchantDetail() {
   }, [merchantId, fetchMerchant]);
 
   // After initial merchant data is loaded, query registration status once
-  // Skip if kycStatus is still PENDING (just submitted, Antom hasn't processed yet)
+  // Only query when merchant has submitted registration (has registrationRequestId)
+  // and kycStatus is PENDING (waiting for Antom result) - this is the active polling case
+  // Skip if INIT (not yet registered) or already has final result (APPROVED/REJECTED/SUPPLEMENT_REQUIRED)
   useEffect(() => {
     if (!merchant || !merchantId) return;
-    if (merchant.registrationRequestId && merchant.kycStatus !== 'PENDING') {
+    if (merchant.registrationRequestId && merchant.kycStatus === 'PENDING') {
       fetchRegistrationStatus(merchantId);
     }
     // Only run once after merchant is first loaded

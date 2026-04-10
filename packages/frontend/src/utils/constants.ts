@@ -16,7 +16,8 @@ export const PAYMENT_METHOD_OPTIONS = [
 export const ALL_PAYMENT_METHOD_TYPES = PAYMENT_METHOD_OPTIONS.map((o) => o.value);
 
 export const KYC_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-  PENDING: { color: 'default', label: 'Pending' },
+  INIT: { color: 'default', label: 'Not Submitted' },
+  PENDING: { color: 'processing', label: 'Pending' },
   APPROVED: { color: 'success', label: 'Approved' },
   REJECTED: { color: 'error', label: 'Rejected' },
   SUPPLEMENT_REQUIRED: { color: 'warning', label: 'Supplement Required' },

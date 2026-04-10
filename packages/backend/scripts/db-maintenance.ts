@@ -230,7 +230,7 @@ async function getMerchant(merchantId: string) {
 // ============ 状态修改功能 ============
 
 const VALID_STATUS = ['ACTIVE', 'INACTIVE', 'OFFBOARDED'] as const;
-const VALID_KYC_STATUS = ['PENDING', 'APPROVED', 'REJECTED', 'SUPPLEMENT_REQUIRED'] as const;
+const VALID_KYC_STATUS = ['INIT', 'PENDING', 'APPROVED', 'REJECTED', 'SUPPLEMENT_REQUIRED'] as const;
 const VALID_RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const;
 
 async function updateMerchantStatus(merchantId: string, status: string) {

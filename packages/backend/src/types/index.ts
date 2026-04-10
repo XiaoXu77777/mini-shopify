@@ -1,6 +1,6 @@
 // Merchant
 export type MerchantStatus = 'ACTIVE' | 'INACTIVE' | 'OFFBOARDED';
-export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPPLEMENT_REQUIRED';
+export type KycStatus = 'INIT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPPLEMENT_REQUIRED';
 
 // Payment Method
 export type PaymentMethodStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';

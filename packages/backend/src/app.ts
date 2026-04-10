@@ -1,9 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
-import https from 'https';
-import fs from 'fs';
-import path from 'path';
 import { config } from './utils/config';
 import { setupWebSocket } from './websocket';
 import { errorHandler } from './middleware/errorHandler';
@@ -90,29 +87,5 @@ httpServer.listen(config.port, () => {
   console.log(`[Server] HTTP server running on http://localhost:${config.port}`);
   console.log(`[Server] Mode: ${config.mockMode ? 'MOCK' : 'PRODUCTION'}`);
   console.log(`[Server] WebSocket: ws://localhost:${config.port}/ws`);
+  console.log(`[Server] Antom callback: https://minishopify.xyz/register/notification (via Nginx reverse proxy)`);
 });
-
-// Create HTTPS server (for Antom callbacks and public access)
-// Support both tsx (src/) and compiled (dist/) directory structures
-const cfgDir = path.resolve(__dirname, '../../cfg');
-const cfgDirAlt = path.resolve(__dirname, '../cfg');
-const sslDir = fs.existsSync(cfgDir) ? cfgDir : cfgDirAlt;
-const sslKeyPath = path.join(sslDir, 'minishopify.xyz.key');
-const sslCertPath = path.join(sslDir, 'minishopify.xyz.pem');
-
-if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
-  const sslOptions = {
-    key: fs.readFileSync(sslKeyPath),
-    cert: fs.readFileSync(sslCertPath),
-  };
-  const httpsServer = https.createServer(sslOptions, app);
-  setupWebSocket(httpsServer);
-
-  httpsServer.listen(443, () => {
-    console.log(`[Server] HTTPS server running on https://minishopify.xyz:443`);
-    console.log(`[Server] WebSocket: wss://minishopify.xyz/ws`);
-  });
-} else {
-  console.warn(`[Server] SSL certificates not found at ${sslKeyPath}, HTTPS server not started`);
-  console.warn(`[Server] Antom callbacks (https://minishopify.xyz/register/notification) will NOT work`);
-}
