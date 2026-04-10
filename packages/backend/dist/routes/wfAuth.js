@@ -245,14 +245,14 @@ router.get('/authorize', (_req, res) => {
 router.post('/query-kyb', async (req, res) => {
     try {
         const { accessToken, customerId } = req.body;
-        if (!accessToken || !customerId) {
+        if (!accessToken) {
             res.status(400).json({
                 success: false,
-                error: 'accessToken and customerId are required'
+                error: 'accessToken is required'
             });
             return;
         }
-        const result = await antomService_1.antomService.queryKybInfo(accessToken, customerId);
+        const result = await antomService_1.antomService.queryKybInfo(accessToken, customerId || '');
         if (result.success) {
             res.json({
                 success: true,
@@ -292,7 +292,7 @@ router.post('/oauth-url', async (req, res) => {
         oauthStateStore.set(state, { merchantId, timestamp: Date.now() });
         // Build OAuth URL with required parameters
         // Note: In production, these values should come from environment variables or database
-        const oauthClientId = config_1.config.wf?.oauthClientId || '2188120328356641';
+        const oauthClientId = config_1.config.wf?.oauthClientId;
         const referenceCustomerId = `MERCHANT_${merchantId}`;
         // Build redirect URL (should point to frontend callback)
         const redirectUrl = `${config_1.config.frontendUrl || 'https://minishopify.xyz'}/merchants/${merchantId}/setup-payments`;
@@ -338,6 +338,7 @@ router.post('/exchange-token', async (req, res) => {
             });
             return;
         }
+        console.log('[WF] exchange-token called with authCode:', authCode);
         // In mock mode, generate mock tokens
         if (config_1.config.mockMode) {
             const accessToken = `WF_ACCESS_TOKEN_${(0, uuid_1.v4)().replace(/-/g, '')}`;
@@ -355,7 +356,7 @@ router.post('/exchange-token', async (req, res) => {
         // POST /amsin/api/v1/oauth/applyToken
         // Reference: https://docs.antom.com/ac/isv/apply_token_wf
         try {
-            const baseUrl = 'https://developers.worldfirst.com.cn';
+            const baseUrl = 'https://open-sea.worldfirst.com';
             const tokenUrl = `${baseUrl}/amsin/api/v1/oauth/applyToken`;
             // Build request body with proper signature
             const requestTime = new Date().toISOString().replace('Z', '+00:00');
@@ -365,26 +366,57 @@ router.post('/exchange-token', async (req, res) => {
             };
             // Import crypto functions for signing
             const { signRequest, buildSignatureHeader } = await Promise.resolve().then(() => __importStar(require('../utils/crypto')));
-            const signature = signRequest('/amsin/api/v1/oauth/applyToken', config_1.config.antom.clientId, requestTime, JSON.stringify(requestBody), config_1.config.antom.privateKey);
+            const signature = signRequest('/amsin/api/v1/oauth/applyToken', config_1.config.wf.oauthClientID, requestTime, JSON.stringify(requestBody), config_1.config.wf.privateKey);
+            const requestHeaders = {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'client-id': config_1.config.wf.oauthClientID,
+                'Request-Time': requestTime,
+                'Signature': buildSignatureHeader(signature),
+            };
+            console.log('[WF] Token exchange request URL:', tokenUrl);
+            console.log('[WF] Token exchange request headers:', JSON.stringify(requestHeaders, null, 2));
+            console.log('[WF] Token exchange request body:', JSON.stringify(requestBody, null, 2));
             const response = await fetch(tokenUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json; charset=UTF-8',
-                    'client-id': config_1.config.antom.clientId,
-                    'Request-Time': requestTime,
-                    'Signature': buildSignatureHeader(signature),
-                },
+                headers: requestHeaders,
                 body: JSON.stringify(requestBody),
             });
+            const responseText = await response.text();
+            const contentType = response.headers.get('content-type') || '';
+            console.log(`[WF] Token exchange response: status=${response.status}, content-type=${contentType}, body=${responseText.substring(0, 500)}`);
             if (!response.ok) {
-                throw new Error(`Token exchange failed: ${response.status}`);
+                throw new Error(`Token exchange failed: status=${response.status}, body=${responseText.substring(0, 200)}`);
             }
-            const data = await response.json();
+            if (!contentType.includes('application/json')) {
+                throw new Error(`Token exchange returned non-JSON response: content-type=${contentType}, body=${responseText.substring(0, 200)}`);
+            }
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            }
+            catch (parseErr) {
+                throw new Error(`Token exchange returned invalid JSON: ${responseText.substring(0, 200)}`);
+            }
+            // Check business-level result status
+            if (data.result?.resultStatus !== 'S') {
+                const code = data.result?.resultCode || 'UNKNOWN';
+                const msg = data.result?.resultMessage || 'Unknown error';
+                console.error(`[WF] Token exchange business error: ${code} - ${msg}`);
+                res.status(400).json({
+                    success: false,
+                    error: `Token exchange failed: ${code} - ${msg}`
+                });
+                return;
+            }
+            if (!data.accessToken) {
+                throw new Error('Token exchange response missing accessToken');
+            }
             res.json({
                 success: true,
                 accessToken: data.accessToken,
-                customerId: data.customerId,
-                wfAccountId: data.wfAccountId
+                // customerId and wfAccountId may not be present in applyToken response
+                customerId: data.customerId || '',
+                wfAccountId: data.wfAccountId || '',
             });
         }
         catch (apiErr) {

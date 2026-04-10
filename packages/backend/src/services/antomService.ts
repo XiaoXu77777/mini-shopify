@@ -447,6 +447,10 @@ export const antomService = {
   }): Promise<AntomResponse> {
     const { parentMerchantId } = config.antom;
 
+    if (!parentMerchantId) {
+      throw new Error('PARENT_MERCHANT_ID is not configured');
+    }
+
     const requestBody: AntomInquireRequest = {
       merchant: {
         parentMerchantId,
@@ -493,6 +497,10 @@ export const antomService = {
     referenceMerchantId: string;
   }): Promise<AntomResponse> {
     const { parentMerchantId } = config.antom;
+
+    if (!parentMerchantId) {
+      throw new Error('PARENT_MERCHANT_ID is not configured');
+    }
 
     const requestBody: AntomOffboardRequest = {
       offboardingRequestId: data.offboardingRequestId,

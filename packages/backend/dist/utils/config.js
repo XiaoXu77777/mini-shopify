@@ -16,17 +16,24 @@ exports.config = {
         publicKey: process.env.ANTOM_PUBLIC_KEY || '',
         baseUrl: process.env.ANTOM_BASE_URL || 'https://open-sea-global.alipay.com',
         agentToken: process.env.ANTOM_AGENT_TOKEN || '',
-        parentMerchantId: process.env.PARENT_MERCHANT_ID || '2188120041577055',
+        parentMerchantId: process.env.PARENT_MERCHANT_ID,
         defaultSettlementCurrency: process.env.DEFAULT_SETTLEMENT_CURRENCY || 'HKD',
         sandbox: process.env.ANTOM_SANDBOX !== 'false', // 默认 true，生产环境需显式设为 false
     },
+    // Temporary workaround: KYB fileUrl cannot be used directly in register requests.
+    // When enabled, all fileUrl values in register requests will be replaced with the proxy URL.
+    useProxyFileUrl: process.env.USE_PROXY_FILE_URL !== 'false', // default true
+    proxyFileUrl: process.env.PROXY_FILE_URL || 'https://pics1.baidu.com/feed/a5c27d1ed21b0ef4d0d3794da512ecd780cb3eca.jpeg',
+    proxyFileName: process.env.PROXY_FILE_NAME || '1745219612128_fish.jpeg',
     mockMode: process.env.MOCK_MODE === 'true',
     mockNotifyDelayMs: parseInt(process.env.MOCK_NOTIFY_DELAY_MS || '1500', 10),
     notifyCallbackUrl: process.env.NOTIFY_CALLBACK_URL || '',
     frontendUrl: process.env.FRONTEND_URL || 'https://minishopify.xyz',
     wf: {
-        oauthClientId: process.env.WF_OAUTH_CLIENT_ID || '2188120328356641',
-        oauthClientSecret: process.env.WF_OAUTH_CLIENT_SECRET || '',
+        oauthClientID: '5J5YHR5W2YBU9403103',
+        oauthClientId: '2188120272582435',
+        oauthClientSecret: '',
+        privateKey: process.env.WF_PRIVATE_KEY || '',
     },
     // Mock presets: pre-configured results for mock notifications
     mockPresets: {

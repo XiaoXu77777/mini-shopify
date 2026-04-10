@@ -194,9 +194,9 @@ router.post('/:id/setup-payments', async (req, res) => {
     let currentStep = 'queryKyb';
     try {
         const id = paramStr(req.params.id);
-        const { wfAccountId, accessToken, customerId } = req.body;
-        if (!wfAccountId || !accessToken || !customerId) {
-            res.status(400).json({ success: false, error: 'wfAccountId, accessToken, and customerId are required' });
+        const { wfAccountId, accessToken, customerId, kycOverrides } = req.body;
+        if (!accessToken) {
+            res.status(400).json({ success: false, error: 'accessToken is required' });
             return;
         }
         const merchant = await merchantService_1.merchantService.getById(id);
@@ -207,7 +207,7 @@ router.post('/:id/setup-payments', async (req, res) => {
         // Step 1: Save WF account ID
         await merchantService_1.merchantService.updateWfAccount(id, wfAccountId);
         // Step 2: Query KYB info from Antom using WF access token
-        const kybResult = await antomService_1.antomService.queryKybInfo(accessToken, customerId);
+        const kybResult = await antomService_1.antomService.queryKybInfo(accessToken, customerId || '');
         if (!kybResult.success || !kybResult.kybData) {
             res.status(400).json({ success: false, failedStep: 'queryKyb', error: kybResult.error || 'Failed to query KYB information' });
             return;
@@ -215,34 +215,35 @@ router.post('/:id/setup-payments', async (req, res) => {
         const kybData = kybResult.kybData;
         currentStep = 'fillKyc';
         // Step 3: Fill KYC info from KYB data + extra fields (Shopify auto-fills, merchant doesn't need to input)
+        // kycOverrides from frontend takes priority over KYB data for user-editable fields
+        const overrides = kycOverrides || {};
         const kycPayload = {
-            // From KYB data
-            legalName: String(kybData.legalName || ''),
-            companyType: String(kybData.companyType || ''),
-            certificateType: String(kybData.certificateType || ''),
-            certificateNo: String(kybData.certificateNo || ''),
-            branchName: String(kybData.branchName || ''),
-            companyUnit: String(kybData.companyUnit || ''),
-            addressRegion: String(kybData.addressRegion || ''),
-            addressState: String(kybData.addressState || ''),
-            addressCity: String(kybData.addressCity || ''),
-            address1: String(kybData.address1 || ''),
-            address2: String(kybData.address2 || ''),
-            zipCode: String(kybData.zipCode || ''),
-            mcc: String(kybData.mcc || ''),
-            doingBusinessAs: String(kybData.doingBusinessAs || ''),
-            websiteUrl: String(kybData.websiteUrl || ''),
-            englishName: String(kybData.englishName || ''),
-            serviceDescription: String(kybData.serviceDescription || ''),
-            // Extra fields auto-filled by Shopify (not from KYB)
-            appName: merchant.shopName,
-            merchantBrandName: String(kybData.merchantBrandName || merchant.shopName),
-            contactType: String(kybData.contactType || ''),
-            contactInfo: String(kybData.contactInfo || merchant.email),
-            legalRepName: String(kybData.legalRepName || ''),
-            legalRepIdType: String(kybData.legalRepIdType || ''),
-            legalRepIdNo: String(kybData.legalRepIdNo || ''),
-            legalRepDob: String(kybData.legalRepDob || ''),
+            // All fields: prefer frontend overrides (user-edited values) over KYB raw data
+            legalName: overrides.legalName || String(kybData.legalName || merchant.shopName),
+            companyType: overrides.companyType || String(kybData.companyType || ''),
+            certificateType: overrides.certificateType || String(kybData.certificateType || ''),
+            certificateNo: overrides.certificateNo || String(kybData.certificateNo || ''),
+            branchName: overrides.branchName ?? String(kybData.branchName || ''),
+            companyUnit: overrides.companyUnit ?? String(kybData.companyUnit || ''),
+            addressRegion: overrides.addressRegion || String(kybData.addressRegion || ''),
+            addressState: overrides.addressState || String(kybData.addressState || ''),
+            addressCity: overrides.addressCity || String(kybData.addressCity || ''),
+            address1: overrides.address1 || String(kybData.address1 || ''),
+            address2: overrides.address2 ?? String(kybData.address2 || ''),
+            zipCode: overrides.zipCode ?? String(kybData.zipCode || ''),
+            mcc: overrides.mcc || String(kybData.mcc || ''),
+            doingBusinessAs: overrides.doingBusinessAs || String(kybData.doingBusinessAs || ''),
+            websiteUrl: overrides.websiteUrl || String(kybData.websiteUrl || ''),
+            englishName: overrides.englishName ?? String(kybData.englishName || ''),
+            serviceDescription: overrides.serviceDescription ?? String(kybData.serviceDescription || ''),
+            appName: overrides.appName || merchant.shopName,
+            merchantBrandName: overrides.merchantBrandName ?? String(kybData.merchantBrandName || merchant.shopName),
+            contactType: overrides.contactType ?? String(kybData.contactType || ''),
+            contactInfo: overrides.contactInfo || String(kybData.contactInfo || merchant.email),
+            legalRepName: overrides.legalRepName ?? String(kybData.legalRepName || ''),
+            legalRepIdType: overrides.legalRepIdType ?? String(kybData.legalRepIdType || ''),
+            legalRepIdNo: overrides.legalRepIdNo ?? String(kybData.legalRepIdNo || ''),
+            legalRepDob: overrides.legalRepDob ?? String(kybData.legalRepDob || ''),
             wfKycData: kybData,
         };
         await merchantService_1.merchantService.upsertKyc(id, kycPayload);

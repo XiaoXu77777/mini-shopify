@@ -7,17 +7,22 @@ export declare const config: {
         publicKey: string;
         baseUrl: string;
         agentToken: string;
-        parentMerchantId: string;
+        parentMerchantId: string | undefined;
         defaultSettlementCurrency: string;
         sandbox: boolean;
     };
+    useProxyFileUrl: boolean;
+    proxyFileUrl: string;
+    proxyFileName: string;
     mockMode: boolean;
     mockNotifyDelayMs: number;
     notifyCallbackUrl: string;
     frontendUrl: string;
     wf: {
+        oauthClientID: string;
         oauthClientId: string;
         oauthClientSecret: string;
+        privateKey: string;
     };
     mockPresets: {
         kycResult: "APPROVED" | "REJECTED" | "SUPPLEMENT_REQUIRED";

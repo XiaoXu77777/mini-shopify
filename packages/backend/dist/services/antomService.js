@@ -5,7 +5,7 @@ const config_1 = require("../utils/config");
 const crypto_1 = require("../utils/crypto");
 // API paths (production format, sandbox prefix will be added dynamically)
 const REGISTER_PATH = '/ams/api/v1/merchant/register';
-const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchant/inquiryRegistration';
+const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchants/inquiryRegistrationStatus';
 const OFFBOARD_PATH = '/ams/api/v1/merchant/offboard';
 const DEACTIVATE_PATH = '/ams/api/v1/merchant/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';
@@ -90,6 +90,20 @@ async function callWithRetry(options, maxRetries = 3, baseDelayMs = 1000) {
 function buildRegisterRequest(data) {
     const kyc = data.kycInfo;
     const { parentMerchantId } = config_1.config.antom;
+    // Temporary workaround: KYB fileUrl cannot be used directly in register requests.
+    // When useProxyFileUrl is enabled, replace all fileUrl/fileName with the configured proxy values.
+    const resolveFileUrl = (originalUrl) => {
+        if (config_1.config.useProxyFileUrl && originalUrl) {
+            return config_1.config.proxyFileUrl;
+        }
+        return originalUrl;
+    };
+    const resolveFileName = (originalName) => {
+        if (config_1.config.useProxyFileUrl && originalName) {
+            return config_1.config.proxyFileName;
+        }
+        return originalName;
+    };
     // Parse wfKycData if available (contains the full KYB response with nested structures)
     let wfKyc = null;
     if (kyc?.wfKycData) {
@@ -129,8 +143,8 @@ function buildRegisterRequest(data) {
             certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
             fileList: Array.isArray(cert.fileList)
                 ? cert.fileList.map((f) => ({
-                    fileName: String(f.fileName || ''),
-                    fileUrl: String(f.fileUrl || ''),
+                    fileName: resolveFileName(String(f.fileName || '')),
+                    fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                 }))
                 : undefined,
             registrationCertificate: cert.registrationCertificate != null
@@ -201,8 +215,8 @@ function buildRegisterRequest(data) {
                             certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
                             fileList: Array.isArray(cert.fileList)
                                 ? cert.fileList.map((f) => ({
-                                    fileName: String(f.fileName || ''),
-                                    fileUrl: String(f.fileUrl || ''),
+                                    fileName: resolveFileName(String(f.fileName || '')),
+                                    fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                                 }))
                                 : undefined,
                             registrationCertificate: cert.registrationCertificate != null
@@ -223,8 +237,8 @@ function buildRegisterRequest(data) {
                             certificateType: cert.certificateType ? String(cert.certificateType) : undefined,
                             fileList: Array.isArray(cert.fileList)
                                 ? cert.fileList.map((f) => ({
-                                    fileName: String(f.fileName || ''),
-                                    fileUrl: String(f.fileUrl || ''),
+                                    fileName: resolveFileName(String(f.fileName || '')),
+                                    fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                                 }))
                                 : undefined,
                             registrationCertificate: cert.registrationCertificate != null
@@ -281,8 +295,8 @@ function buildRegisterRequest(data) {
                     attachmentType: String(att.attachmentType || ''),
                     fileList: Array.isArray(att.fileList)
                         ? att.fileList.map((f) => ({
-                            fileName: String(f.fileName || ''),
-                            fileUrl: String(f.fileUrl || ''),
+                            fileName: resolveFileName(String(f.fileName || '')),
+                            fileUrl: resolveFileUrl(String(f.fileUrl || '')),
                         }))
                         : [],
                 }));
@@ -290,16 +304,16 @@ function buildRegisterRequest(data) {
             return s;
         });
     }
-    // Build settlementInfoList (top-level, differs by WF account presence)
-    const settlementInfoList = data.merchant.wfAccountId
-        ? [
-            {
-                settlementAccountType: 'WORLD_FIRST_ACCOUNT',
-                settlementAccountInfo: { accountNo: data.merchant.wfAccountId },
-                settlementCurrency: data.merchant.settlementCurrency,
-            },
-        ]
-        : [{ settlementCurrency: data.merchant.settlementCurrency }];
+    // Build settlementInfoList (top-level, settlementAccountType is always WORLD_FIRST_ACCOUNT)
+    const settlementInfoList = [
+        {
+            settlementAccountType: 'WORLD_FIRST_ACCOUNT',
+            ...(data.merchant.wfAccountId
+                ? { settlementAccountInfo: { accountNo: data.merchant.wfAccountId } }
+                : {}),
+            settlementCurrency: data.merchant.settlementCurrency,
+        },
+    ];
     // Build paymentMethodActivationRequests
     const paymentMethodActivationRequests = data.paymentMethodTypes.map((pmType) => ({
         paymentMethodType: pmType,
@@ -339,6 +353,9 @@ exports.antomService = {
      */
     async inquireRegistrationStatus(data) {
         const { parentMerchantId } = config_1.config.antom;
+        if (!parentMerchantId) {
+            throw new Error('PARENT_MERCHANT_ID is not configured');
+        }
         const requestBody = {
             merchant: {
                 parentMerchantId,
@@ -378,6 +395,9 @@ exports.antomService = {
      */
     async offboard(data) {
         const { parentMerchantId } = config_1.config.antom;
+        if (!parentMerchantId) {
+            throw new Error('PARENT_MERCHANT_ID is not configured');
+        }
         const requestBody = {
             offboardingRequestId: data.offboardingRequestId,
             merchant: {
@@ -428,8 +448,7 @@ exports.antomService = {
      * This is used after user logs in with WorldFirst and authorizes to share KYB info.
      */
     async queryKybInfo(accessToken, customerId) {
-        //测试账号没那么多wf账号，都走mock
-        if (1) {
+        if (config_1.config.mockMode) {
             // Mock KYB data for demo
             return {
                 success: true,
@@ -586,32 +605,123 @@ exports.antomService = {
             };
         }
         try {
-            const requestBody = {
-                accessToken,
-                customerId,
+            // queryKybInfo uses WF credentials, not Antom credentials
+            const baseUrl = 'https://open-sea.worldfirst.com';
+            const apiPath = QUERY_KYB_PATH;
+            const url = `${baseUrl}${apiPath}`;
+            const requestBody = { accessToken };
+            if (customerId) {
+                requestBody.customerId = customerId;
+            }
+            const requestTime = new Date().toISOString().replace('Z', '+00:00');
+            const bodyStr = JSON.stringify(requestBody);
+            const signature = (0, crypto_1.signRequest)(apiPath, config_1.config.wf.oauthClientID, requestTime, bodyStr, config_1.config.wf.privateKey);
+            const signatureHeader = (0, crypto_1.buildSignatureHeader)(signature);
+            const headers = {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'client-id': config_1.config.wf.oauthClientID,
+                'Request-Time': requestTime,
+                'Signature': signatureHeader,
             };
-            const response = await callWithRetry({
-                path: QUERY_KYB_PATH,
-                body: requestBody,
+            console.log(`[WF] queryKybInfo >>> ${url}`);
+            console.log(`[WF] queryKybInfo >>> headers:`, JSON.stringify(headers, null, 2));
+            console.log(`[WF] queryKybInfo >>> body: ${bodyStr}`);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: bodyStr,
             });
-            const status = response.resultInfo?.resultStatus || response.result?.resultStatus;
+            const responseText = await response.text();
+            console.log(`[WF] queryKybInfo <<< status=${response.status}, body=${responseText}`);
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            }
+            catch {
+                throw new Error(`queryKybInfo returned invalid JSON: ${responseText.substring(0, 200)}`);
+            }
+            const result = data.result;
+            const status = result?.resultStatus;
             if (status === 'S') {
-                return {
-                    success: true,
-                    kybData: response.customer
-                        ? response.customer.businessPartner
-                        : response,
+                // Extract and flatten KYB data from WF response
+                // WF returns nested structure: { merchant: { businessInfo: {...}, company: {...}, ... } }
+                // Frontend expects flat structure: { legalName, companyType, address1, ... }
+                const merchant = data.merchant;
+                if (!merchant) {
+                    return { success: true, kybData: {} };
+                }
+                const company = merchant.company;
+                const businessInfo = merchant.businessInfo;
+                const registeredAddress = company?.registeredAddress;
+                // Flatten nested WF merchant structure to match frontend KYC form fields
+                const kybData = {
+                    // Company info
+                    legalName: company?.legalName || '',
+                    companyType: company?.companyType || '',
+                    incorporationDate: company?.incorporationDate || '',
+                    vatNo: company?.vatNo || '',
+                    branchName: company?.branchName || '',
+                    companyUnit: company?.companyUnit || '',
+                    // Certificates (nested structure preserved for rich data)
+                    certificates: company?.certificates || [],
+                    // Flat certificate fields for DB storage
+                    certificateType: '',
+                    certificateNo: '',
+                    // Registered address
+                    addressRegion: registeredAddress?.region || '',
+                    addressState: registeredAddress?.state || '',
+                    addressCity: registeredAddress?.city || '',
+                    address1: registeredAddress?.address1 || '',
+                    address2: registeredAddress?.address2 || '',
+                    zipCode: registeredAddress?.zipCode || '',
+                    // Business info
+                    appName: businessInfo?.appName || '',
+                    merchantBrandName: businessInfo?.merchantBrandName || '',
+                    mcc: businessInfo?.mcc || businessInfo?.industryType || '',
+                    doingBusinessAs: businessInfo?.doingBusinessAs || '',
+                    englishName: businessInfo?.englishName || '',
+                    serviceDescription: businessInfo?.serviceDescription || '',
+                    // Website
+                    websiteUrl: '',
+                    // Contact
+                    contactType: '',
+                    contactInfo: '',
+                    // Entity associations (preserve nested structure)
+                    entityAssociations: merchant.entityAssociations || [],
+                    // Stores (preserve nested structure)
+                    stores: merchant.stores || [],
+                    // Keep the full merchant object for any fields we might have missed
+                    _rawMerchant: merchant,
                 };
+                // Extract first certificate info for flat fields
+                const certs = company?.certificates;
+                if (certs && certs.length > 0) {
+                    kybData.certificateType = certs[0].certificateType || '';
+                    kybData.certificateNo = certs[0].certificateNo || '';
+                }
+                // Extract website from businessInfo.websites array
+                const websites = businessInfo?.websites;
+                if (websites && websites.length > 0) {
+                    kybData.websiteUrl = websites[0].url || '';
+                }
+                // Extract contact from company.contactMethods
+                const contacts = company?.contactMethods;
+                if (contacts && contacts.length > 0) {
+                    kybData.contactType = contacts[0].contactMethodType || '';
+                    kybData.contactInfo = contacts[0].contactMethodInfo || '';
+                }
+                console.log('[WF] queryKybInfo flattened kybData keys:', Object.keys(kybData));
+                return { success: true, kybData };
             }
             else {
-                return {
-                    success: false,
-                    error: response.resultInfo?.resultMessage || 'Failed to query KYB info',
-                };
+                const code = result?.resultCode || 'UNKNOWN';
+                const msg = result?.resultMessage || 'Failed to query KYB info';
+                console.error(`[WF] queryKybInfo business error: ${code} - ${msg}`);
+                return { success: false, error: `${code} - ${msg}` };
             }
         }
         catch (error) {
-            console.error('[Antom] Query KYB error:', error);
+            console.error('[WF] queryKybInfo error:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
