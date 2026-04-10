@@ -453,7 +453,7 @@ export const antomService = {
 
     const requestBody: AntomInquireRequest = {
       merchant: {
-        parentMerchantId,
+        integrationPartnerId: parentMerchantId,
         referenceMerchantId: data.referenceMerchantId,
       },
     };
