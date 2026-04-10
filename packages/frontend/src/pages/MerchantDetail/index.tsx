@@ -14,15 +14,6 @@ import type { Merchant, Notification } from '../../types';
 
 const { Title } = Typography;
 
-export interface RegistrationStatusResult {
-  registrationStatus: string;
-  registrationRequestId?: string;
-  parentMerchantId?: string;
-  referenceMerchantId?: string;
-  failReasonType?: string;
-  failReasonDescription?: string;
-}
-
 export default function MerchantDetail() {
   const { id: paramId } = useParams<{ id: string }>();
   const { currentMerchant } = useAppContext();
@@ -31,29 +22,21 @@ export default function MerchantDetail() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatusResult | null>(null);
-  const [registrationStatusLoading, setRegistrationStatusLoading] = useState(false);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Query registration status from Antom (guide section 4.2)
-  // Also updates local merchant status based on Antom response
+  // This is a silent sync to compensate for missed notifications.
+  // It updates local merchant status based on Antom response, then refreshes merchant data.
   const fetchRegistrationStatus = useCallback(async (mid: string) => {
-    setRegistrationStatusLoading(true);
     try {
       const res = await merchantApi.inquireRegistrationStatus(mid);
-      const data = res.data;
-      if (data.registrationResult) {
-        setRegistrationStatus(data.registrationResult as RegistrationStatusResult);
-      }
-      // Backend has updated merchant status, re-fetch to get properly formatted data
-      if (data.merchant) {
+      // Backend has updated merchant status via updateStatusFromRegistrationResult
+      if (res.data.merchant) {
         const freshRes = await merchantApi.getById(mid);
         setMerchant(freshRes.data);
       }
     } catch (err) {
       console.error('Failed to query registration status:', err);
-    } finally {
-      setRegistrationStatusLoading(false);
     }
   }, []);
 
@@ -81,7 +64,6 @@ export default function MerchantDetail() {
     initialLoadDone.current = false;
     setMerchant(null);
     setNotifications([]);
-    setRegistrationStatus(null);
     setLoading(true);
   }, [merchantId]);
   useEffect(() => {
@@ -142,7 +124,7 @@ export default function MerchantDetail() {
   const isOffboarded = merchant.status === 'OFFBOARDED';
 
   const tabItems = [
-    { key: 'overview', label: 'Overview', children: <OverviewTab merchant={merchant} notifications={notifications} registrationStatus={registrationStatus} registrationStatusLoading={registrationStatusLoading} /> },
+    { key: 'overview', label: 'Overview', children: <OverviewTab merchant={merchant} notifications={notifications} /> },
     { key: 'kyc', label: 'KYC', children: <KycTab merchant={merchant} onRefresh={fetchMerchant} /> },
     { key: 'payment-methods', label: 'Payment Methods', children: <PaymentMethodsTab merchant={merchant} onRefresh={fetchMerchant} /> },
     { key: 'notifications', label: 'Notifications', children: <NotificationsTab merchantId={merchant.id} /> },

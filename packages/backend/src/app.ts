@@ -25,7 +25,7 @@ app.use(
 
 // Routes
 app.use('/api/merchants', merchantRouter);
-app.use('/api/notify', notifyRouter);
+app.use('/register', notifyRouter);
 app.use('/api/mock', mockRouter);
 app.use('/api/wf', wfAuthRouter);
 
