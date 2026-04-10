@@ -30,6 +30,7 @@ export interface AntomResult {
 export interface AntomResponse {
   result?: AntomResult;
   resultInfo?: AntomResultInfo;
+  registrationResult?: AntomRegistrationResult;
   [key: string]: unknown;
 }
 

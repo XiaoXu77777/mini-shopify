@@ -36,13 +36,19 @@ export default function MerchantDetail() {
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Query registration status from Antom (guide section 4.2)
-  const fetchRegistrationStatus = useCallback(async (merchantId: string) => {
+  // Also updates local merchant status based on Antom response
+  const fetchRegistrationStatus = useCallback(async (mid: string) => {
     setRegistrationStatusLoading(true);
     try {
-      const res = await merchantApi.inquireRegistrationStatus(merchantId);
+      const res = await merchantApi.inquireRegistrationStatus(mid);
       const data = res.data;
       if (data.registrationResult) {
         setRegistrationStatus(data.registrationResult as RegistrationStatusResult);
+      }
+      // Backend has updated merchant status, re-fetch to get properly formatted data
+      if (data.merchant) {
+        const freshRes = await merchantApi.getById(mid);
+        setMerchant(freshRes.data);
       }
     } catch (err) {
       console.error('Failed to query registration status:', err);
@@ -60,22 +66,42 @@ export default function MerchantDetail() {
       ]);
       setMerchant(merchantRes.data);
       setNotifications(notifyRes.data.data);
-
-      // If merchant has been registered, actively query registration status
-      if (merchantRes.data.registrationRequestId) {
-        fetchRegistrationStatus(merchantId);
-      }
     } catch (err) {
       console.error('Failed to fetch merchant:', err);
       message.error('Failed to load merchant details');
     } finally {
       setLoading(false);
     }
-  }, [merchantId, fetchRegistrationStatus]);
+  }, [merchantId]);
 
+  // On page load: fetch merchant data, then query registration status once
+  const initialLoadDone = useRef(false);
+  // 当 merchantId 变化时，重置加载状态，确保切换商户后能重新获取数据
   useEffect(() => {
-    fetchMerchant();
-  }, [fetchMerchant]);
+    initialLoadDone.current = false;
+    setMerchant(null);
+    setNotifications([]);
+    setRegistrationStatus(null);
+    setLoading(true);
+  }, [merchantId]);
+  useEffect(() => {
+    if (!merchantId || initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    (async () => {
+      await fetchMerchant();
+    })();
+  }, [merchantId, fetchMerchant]);
+
+  // After initial merchant data is loaded, query registration status once
+  // Skip if kycStatus is still PENDING (just submitted, Antom hasn't processed yet)
+  useEffect(() => {
+    if (!merchant || !merchantId) return;
+    if (merchant.registrationRequestId && merchant.kycStatus !== 'PENDING') {
+      fetchRegistrationStatus(merchantId);
+    }
+    // Only run once after merchant is first loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchant?.registrationRequestId]);
 
   // WebSocket: auto-refresh on notifications (debounced, last one wins)
   useWebSocket(merchantId || null, () => {

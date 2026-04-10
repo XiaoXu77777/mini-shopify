@@ -10,7 +10,7 @@
  *   stats                             统计数据概览
  *   get <merchantId>                  查看商户详情
  * 
- *   status <merchantId> <status>      修改商户状态 (ACTIVE/OFFBOARDED)
+ *   status <merchantId> <status>      修改商户状态 (ACTIVE/INACTIVE/OFFBOARDED)
  *   kyc <merchantId> <kycStatus>      修改商户KYC状态 (PENDING/APPROVED/REJECTED/SUPPLEMENT_REQUIRED)
  *   risk <merchantId> <level> [codes] 修改商户风险等级 (LOW/MEDIUM/HIGH) 和原因码
  * 
@@ -81,12 +81,17 @@ async function listMerchants() {
     const riskColor = m.riskLevel === 'HIGH' ? 'red' : 
                       m.riskLevel === 'MEDIUM' ? 'yellow' : 'green';
 
+    const riskStr = m.riskLevel 
+      ? `${colors[riskColor]}${m.riskLevel}${colors.reset}` 
+      : '-';
+    const riskPadExtra = m.riskLevel ? colors[riskColor].length + colors.reset.length : 0;
+
     console.log(
       m.id.padEnd(36) +
       m.shopName.substring(0, 22).padEnd(25) +
       `${colors[statusColor]}${m.status}${colors.reset}`.padEnd(12 + colors[statusColor].length + colors.reset.length) +
       `${colors[kycColor]}${m.kycStatus}${colors.reset}`.padEnd(20 + colors[kycColor].length + colors.reset.length) +
-      (m.riskLevel ? `${colors[riskColor]}${m.riskLevel}${colors.reset}` : '-').padEnd(10) +
+      riskStr.padEnd(10 + riskPadExtra) +
       String(m.paymentMethods.length).padEnd(6) +
       String(m._count.notifications)
     );
@@ -223,7 +228,7 @@ async function getMerchant(merchantId: string) {
 
 // ============ 状态修改功能 ============
 
-const VALID_STATUS = ['ACTIVE', 'OFFBOARDED'] as const;
+const VALID_STATUS = ['ACTIVE', 'INACTIVE', 'OFFBOARDED'] as const;
 const VALID_KYC_STATUS = ['PENDING', 'APPROVED', 'REJECTED', 'SUPPLEMENT_REQUIRED'] as const;
 const VALID_RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const;
 
@@ -307,12 +312,12 @@ async function deleteMerchant(merchantId: string, hard: boolean = false) {
   const merchant = await prisma.merchant.findUnique({
     where: { id: merchantId },
     include: { 
+      kycInfo: true,
       _count: { 
         select: { 
           paymentMethods: true, 
           notifications: true, 
           entityAssociations: true,
-          kycInfo: true,
         } 
       } 
     },
@@ -329,7 +334,7 @@ async function deleteMerchant(merchantId: string, hard: boolean = false) {
   console.log(`  Status:       ${merchant.status}`);
   console.log(`  KYC Status:   ${merchant.kycStatus}`);
   console.log(`  Related Data:`);
-  console.log(`    - KYC Info:        ${merchant._count.kycInfo}`);
+  console.log(`    - KYC Info:        ${merchant.kycInfo ? 'Yes' : 'No'}`);
   console.log(`    - Payment Methods: ${merchant._count.paymentMethods}`);
   console.log(`    - Notifications:   ${merchant._count.notifications}`);
   console.log(`    - Entity Assocs:   ${merchant._count.entityAssociations}`);
@@ -476,7 +481,7 @@ ${colors.yellow}Query Commands:${colors.reset}
   get <merchantId>                  查看商户详情
 
 ${colors.yellow}Status Commands:${colors.reset}
-  status <merchantId> <status>      修改商户状态 (ACTIVE/OFFBOARDED)
+  status <merchantId> <status>      修改商户状态 (ACTIVE/INACTIVE/OFFBOARDED)
   kyc <merchantId> <kycStatus>      修改KYC状态 (PENDING/APPROVED/REJECTED/SUPPLEMENT_REQUIRED)
   risk <merchantId> <level> [codes] 修改风险等级 (LOW/MEDIUM/HIGH) 和原因码(逗号分隔)
   reset-kyc <merchantId>            重置商户KYC状态
@@ -504,21 +509,27 @@ ${colors.yellow}Payment Method Commands:${colors.reset}
         await showStats();
         break;
       case 'get':
+        if (!args[1]) { log('red', 'Usage: get <merchantId>'); break; }
         await getMerchant(args[1]);
         break;
       case 'status':
+        if (!args[1] || !args[2]) { log('red', 'Usage: status <merchantId> <status>'); break; }
         await updateMerchantStatus(args[1], args[2]);
         break;
       case 'kyc':
+        if (!args[1] || !args[2]) { log('red', 'Usage: kyc <merchantId> <kycStatus>'); break; }
         await updateKycStatus(args[1], args[2]);
         break;
       case 'risk':
+        if (!args[1] || !args[2]) { log('red', 'Usage: risk <merchantId> <level> [codes]'); break; }
         await updateRiskLevel(args[1], args[2], args[3]);
         break;
       case 'reset-kyc':
+        if (!args[1]) { log('red', 'Usage: reset-kyc <merchantId>'); break; }
         await resetKycStatus(args[1]);
         break;
       case 'delete':
+        if (!args[1]) { log('red', 'Usage: delete <merchantId> [--hard]'); break; }
         await deleteMerchant(args[1], args.includes('--hard'));
         break;
       case 'clear-test':
@@ -531,9 +542,11 @@ ${colors.yellow}Payment Method Commands:${colors.reset}
         await clearOldNotifications(parseInt(args[1]) || 30);
         break;
       case 'activate-pm':
+        if (!args[1]) { log('red', 'Usage: activate-pm <pmId>'); break; }
         await activatePaymentMethod(args[1]);
         break;
       case 'deactivate-pm':
+        if (!args[1]) { log('red', 'Usage: deactivate-pm <pmId>'); break; }
         await deactivatePaymentMethod(args[1]);
         break;
       default:

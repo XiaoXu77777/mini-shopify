@@ -203,6 +203,43 @@ export const merchantService = {
     });
   },
 
+  /**
+   * Update local merchant status based on Antom registration status query result.
+   * Reuses the same status mapping logic as notifyService.
+   */
+  async updateStatusFromRegistrationResult(merchantId: string, antomRegistrationStatus: string) {
+    // Map Antom status to internal kycStatus (same logic as notifyService)
+    let kycStatus: string;
+    switch (antomRegistrationStatus) {
+      case 'SUCCESS':
+        kycStatus = 'APPROVED';
+        break;
+      case 'FAIL':
+        kycStatus = 'REJECTED';
+        break;
+      case 'PROCESSING':
+        kycStatus = 'PENDING';
+        break;
+      default:
+        kycStatus = antomRegistrationStatus; // e.g. SUPPLEMENT_REQUIRED
+    }
+
+    const updateData: Record<string, unknown> = { kycStatus };
+
+    if (kycStatus === 'APPROVED') {
+      updateData.status = 'ACTIVE';
+    } else if (kycStatus === 'REJECTED' || kycStatus === 'SUPPLEMENT_REQUIRED') {
+      updateData.status = 'INACTIVE';
+    }
+
+    await prisma.merchant.update({
+      where: { id: merchantId },
+      data: updateData,
+    });
+
+    console.log(`[MerchantService] Updated status from registration query: ${antomRegistrationStatus} -> kycStatus=${kycStatus}`);
+  },
+
   async getPaymentMethods(merchantId: string) {
     return prisma.paymentMethod.findMany({
       where: { merchantId },

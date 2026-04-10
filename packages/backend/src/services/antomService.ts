@@ -466,8 +466,9 @@ export const antomService = {
     }
 
     if (config.mockMode) {
+      console.log(`[Antom][Mock] inquireRegistrationStatus >>> request:`, JSON.stringify(requestBody, null, 2));
       // In mock mode, return current status from DB (handled at route level)
-      return {
+      const mockResponse = {
         resultInfo: {
           resultStatus: 'S',
           resultCode: 'SUCCESS',
@@ -480,6 +481,8 @@ export const antomService = {
           referenceMerchantId: data.referenceMerchantId,
         },
       };
+      console.log(`[Antom][Mock] inquireRegistrationStatus <<< response:`, JSON.stringify(mockResponse, null, 2));
+      return mockResponse;
     }
 
     return callWithRetry({
@@ -511,7 +514,8 @@ export const antomService = {
     };
 
     if (config.mockMode) {
-      return {
+      console.log(`[Antom][Mock] offboard >>> request:`, JSON.stringify(requestBody, null, 2));
+      const mockResponse = {
         resultInfo: {
           resultStatus: 'S',
           resultCode: 'SUCCESS',
@@ -524,6 +528,8 @@ export const antomService = {
           referenceMerchantId: data.referenceMerchantId,
         },
       };
+      console.log(`[Antom][Mock] offboard <<< response:`, JSON.stringify(mockResponse, null, 2));
+      return mockResponse;
     }
 
     return callWithRetry({
@@ -537,13 +543,16 @@ export const antomService = {
    */
   async deactivate(registrationRequestId: string, paymentMethodType: string): Promise<AntomResponse> {
     if (config.mockMode) {
-      return {
+      console.log(`[Antom][Mock] deactivate >>> request:`, JSON.stringify({ registrationRequestId, paymentMethodType }, null, 2));
+      const mockResponse = {
         resultInfo: {
           resultStatus: 'S',
           resultCode: 'SUCCESS',
           resultMessage: 'success',
         },
       };
+      console.log(`[Antom][Mock] deactivate <<< response:`, JSON.stringify(mockResponse, null, 2));
+      return mockResponse;
     }
 
     return callWithRetry({
@@ -563,8 +572,9 @@ export const antomService = {
   }> {
 
     if (config.mockMode) {
+      console.log(`[Antom][Mock] queryKybInfo >>> request: accessToken=${accessToken}, customerId=${customerId}`);
       // Mock KYB data for demo
-      return {
+      const mockResult = {
         success: true,
         kybData: {
           // Company info
@@ -717,6 +727,8 @@ export const antomService = {
           ],
         },
       };
+      console.log(`[Antom][Mock] queryKybInfo <<< response: success=${mockResult.success}, kybData keys=${Object.keys(mockResult.kybData)}`);
+      return mockResult;
     }
 
     try {

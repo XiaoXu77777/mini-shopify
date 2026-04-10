@@ -85,7 +85,15 @@ export default function AppLayout() {
           <KycStatusTag status={merchant.kycStatus} />
         </div>
       ),
-      onClick: () => setCurrentMerchant(merchant),
+      onClick: () => {
+        setCurrentMerchant(merchant);
+        // 如果当前在商户详情相关页面，同步导航到新商户的页面
+        if (location.pathname.startsWith('/merchants/') && location.pathname !== '/merchants/new') {
+          navigate(`/merchants/${merchant.id}`);
+        } else if (location.pathname === '/merchant') {
+          navigate(`/merchants/${merchant.id}`);
+        }
+      },
     })),
     { type: 'divider' as const },
     {

@@ -39,7 +39,7 @@ export const merchantApi = {
   },
 
   inquireRegistrationStatus(id: string) {
-    return api.get<{ resultInfo: { resultStatus: string }; registrationResult?: { registrationStatus: string } }>(
+    return api.get<{ resultInfo: { resultStatus: string }; registrationResult?: { registrationStatus: string }; merchant?: Merchant }>(
       `/merchants/${id}/registration-status`
     );
   },
