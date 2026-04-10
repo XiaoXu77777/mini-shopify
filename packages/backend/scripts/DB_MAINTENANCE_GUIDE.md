@@ -142,7 +142,20 @@ npm run db:admin clear-offboarded
 ```
 删除所有 `status = OFFBOARDED` 的商户。
 
-#### 5. 清理过期通知
+#### 5. 一键清理所有商户
+```bash
+npm run db:admin clear-all
+```
+**⚠️ 极度危险操作** - 永久删除数据库中**所有商户**及其全部关联数据，包括：
+- 通知记录
+- 支付方式
+- 关联实体（董事/股东）
+- KYC信息
+- 商户主记录
+
+> **注意：此操作不可逆，仅建议在测试/开发环境中使用。生产环境严禁使用！**
+
+#### 6. 清理过期通知
 ```bash
 npm run db:admin clear-notifications [days]
 ```
@@ -219,7 +232,13 @@ npm run db:admin clear-test
 npm run db:admin clear-notifications 7
 ```
 
-### 场景5：商户需要重新提交KYC
+### 场景5：测试环境一键清空所有商户
+```bash
+# ⚠️ 仅限测试/开发环境使用
+npm run db:admin clear-all
+```
+
+### 场景6：商户需要重新提交KYC
 ```bash
 npm run db:admin reset-kyc <merchantId>
 ```

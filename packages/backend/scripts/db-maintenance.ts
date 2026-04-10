@@ -17,6 +17,7 @@
  *   delete <merchantId> [--hard]      删除商户 (默认软删除=设置OFFBOARDED, --hard=物理删除)
  *   clear-test                        清理测试商户 (email包含test或shopName包含测试)
  *   clear-offboarded                  清理已下线商户 (status=OFFBOARDED)
+ *   clear-all                          一键清理所有商户及关联数据 (⚠️危险)
  *   clear-notifications [days]        清理N天前的通知 (默认30天)
  * 
  *   reset-kyc <merchantId>            重置商户KYC状态为PENDING
@@ -426,6 +427,37 @@ async function clearOffboardedMerchants() {
   log('green', `✓ Cleared ${offboardedMerchants.length} offboarded merchants`);
 }
 
+async function clearAllMerchants() {
+  log('cyan', '\n🧹 Clearing ALL merchants...\n');
+
+  const allMerchants = await prisma.merchant.findMany();
+
+  if (allMerchants.length === 0) {
+    log('green', 'No merchants found.');
+    return;
+  }
+
+  log('red', `⚠️  WARNING: About to permanently delete ALL ${allMerchants.length} merchants and their related data!`);
+  log('yellow', 'Merchant list:');
+  for (const m of allMerchants) {
+    console.log(`  - ${m.shopName} (${m.email}) [${m.status}]`);
+  }
+
+  // 按外键依赖顺序批量删除所有数据
+  const notifResult = await prisma.notification.deleteMany({});
+  const pmResult = await prisma.paymentMethod.deleteMany({});
+  const eaResult = await prisma.entityAssociation.deleteMany({});
+  const kycResult = await prisma.kycInfo.deleteMany({});
+  const merchantResult = await prisma.merchant.deleteMany({});
+
+  log('green', `\n✓ Cleared all data:`);
+  console.log(`  - Merchants:           ${merchantResult.count}`);
+  console.log(`  - Notifications:       ${notifResult.count}`);
+  console.log(`  - Payment Methods:     ${pmResult.count}`);
+  console.log(`  - Entity Associations: ${eaResult.count}`);
+  console.log(`  - KYC Info:            ${kycResult.count}`);
+}
+
 async function clearOldNotifications(days: number = 30) {
   log('cyan', `\n🧹 Clearing notifications older than ${days} days...\n`);
 
@@ -491,6 +523,7 @@ ${colors.yellow}Delete Commands:${colors.reset}
   delete <merchantId> --hard        物理删除商户及关联数据
   clear-test                        清理测试商户
   clear-offboarded                  清理已下线商户
+  clear-all                          ⚠️ 一键清理所有商户及关联数据
   clear-notifications [days]        清理N天前的通知 (默认30天)
 
 ${colors.yellow}Payment Method Commands:${colors.reset}
@@ -537,6 +570,9 @@ ${colors.yellow}Payment Method Commands:${colors.reset}
         break;
       case 'clear-offboarded':
         await clearOffboardedMerchants();
+        break;
+      case 'clear-all':
+        await clearAllMerchants();
         break;
       case 'clear-notifications':
         await clearOldNotifications(parseInt(args[1]) || 30);
