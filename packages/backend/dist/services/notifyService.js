@@ -107,6 +107,24 @@ exports.notifyService = {
         return true;
     },
 };
+/**
+ * Evaluate whether the merchant should be ACTIVE.
+ * Merchant Status = ACTIVE requires BOTH conditions:
+ *   1. kycStatus = APPROVED (REGISTRATION_STATUS notification with registrationStatus=SUCCESS)
+ *   2. At least one payment method has status = ACTIVE (PAYMENT_METHOD_ACTIVATION_STATUS notification)
+ * If kycStatus is APPROVED but no payment method is ACTIVE yet, merchant stays INACTIVE.
+ */
+async function evaluateMerchantActiveStatus(merchantId) {
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant || merchant.kycStatus !== 'APPROVED') {
+        return 'INACTIVE';
+    }
+    // Check if at least one payment method is ACTIVE
+    const activePaymentMethod = await prisma.paymentMethod.findFirst({
+        where: { merchantId, status: 'ACTIVE' },
+    });
+    return activePaymentMethod ? 'ACTIVE' : 'INACTIVE';
+}
 async function handleRegistrationStatus(merchantId, notification) {
     // Extract registration status from nested result (guide format) or flat field (legacy)
     const antomStatus = notification.merchantRegistrationResult?.registrationStatus ||
@@ -116,10 +134,7 @@ async function handleRegistrationStatus(merchantId, notification) {
     const updateData = {
         kycStatus,
     };
-    if (kycStatus === 'APPROVED') {
-        updateData.status = 'ACTIVE';
-    }
-    else if (kycStatus === 'REJECTED' || kycStatus === 'SUPPLEMENT_REQUIRED') {
+    if (kycStatus === 'REJECTED' || kycStatus === 'SUPPLEMENT_REQUIRED') {
         updateData.status = 'INACTIVE';
     }
     // Handle rejected/supplement fields
@@ -137,11 +152,24 @@ async function handleRegistrationStatus(merchantId, notification) {
             data: { rejectedFields: null },
         });
     }
+    // First update kycStatus (needed for evaluateMerchantActiveStatus to work correctly)
     await prisma.merchant.update({
         where: { id: merchantId },
         data: updateData,
     });
-    console.log(`[Notify] Registration status for merchant ${merchantId}: ${antomStatus} -> kycStatus=${kycStatus}`);
+    // If KYC is APPROVED, evaluate merchant status based on both KYC and payment method conditions
+    // Merchant becomes ACTIVE only when kycStatus=APPROVED AND at least one payment method is ACTIVE
+    if (kycStatus === 'APPROVED') {
+        const merchantStatus = await evaluateMerchantActiveStatus(merchantId);
+        await prisma.merchant.update({
+            where: { id: merchantId },
+            data: { status: merchantStatus },
+        });
+        console.log(`[Notify] Registration status for merchant ${merchantId}: ${antomStatus} -> kycStatus=${kycStatus}, merchantStatus=${merchantStatus}`);
+    }
+    else {
+        console.log(`[Notify] Registration status for merchant ${merchantId}: ${antomStatus} -> kycStatus=${kycStatus}`);
+    }
 }
 async function handlePaymentMethodActivation(merchantId, notification) {
     const pmType = notification.paymentMethodType;
@@ -159,6 +187,17 @@ async function handlePaymentMethodActivation(merchantId, notification) {
                 activatedAt: pmStatus === 'ACTIVE' ? new Date() : undefined,
             },
         });
+    }
+    // Re-evaluate merchant status: merchant becomes ACTIVE only when
+    // kycStatus=APPROVED AND at least one payment method is ACTIVE
+    const merchantStatus = await evaluateMerchantActiveStatus(merchantId);
+    const currentMerchant = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (currentMerchant && currentMerchant.status !== 'OFFBOARDED' && currentMerchant.status !== merchantStatus) {
+        await prisma.merchant.update({
+            where: { id: merchantId },
+            data: { status: merchantStatus },
+        });
+        console.log(`[Notify] Merchant ${merchantId} status updated to ${merchantStatus} after payment method ${pmType} changed to ${pmStatus}`);
     }
     console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${pmStatus}`);
 }

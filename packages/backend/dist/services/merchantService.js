@@ -140,6 +140,53 @@ exports.merchantService = {
             data: { status: 'INACTIVE', deactivatedAt: new Date() },
         });
     },
+    /**
+     * Update local merchant status based on Antom registration status query result.
+     * Reuses the same status mapping logic as notifyService.
+     * Merchant becomes ACTIVE only when kycStatus=APPROVED AND at least one payment method is ACTIVE.
+     */
+    async updateStatusFromRegistrationResult(merchantId, antomRegistrationStatus) {
+        // Map Antom status to internal kycStatus (same logic as notifyService)
+        let kycStatus;
+        switch (antomRegistrationStatus) {
+            case 'SUCCESS':
+                kycStatus = 'APPROVED';
+                break;
+            case 'FAIL':
+                kycStatus = 'REJECTED';
+                break;
+            case 'PROCESSING':
+                kycStatus = 'PENDING';
+                break;
+            default:
+                kycStatus = antomRegistrationStatus; // e.g. SUPPLEMENT_REQUIRED
+        }
+        const updateData = { kycStatus };
+        if (kycStatus === 'REJECTED' || kycStatus === 'SUPPLEMENT_REQUIRED') {
+            updateData.status = 'INACTIVE';
+        }
+        // First update kycStatus
+        await prisma.merchant.update({
+            where: { id: merchantId },
+            data: updateData,
+        });
+        // If KYC is APPROVED, evaluate merchant status based on both KYC and payment method conditions
+        // Merchant becomes ACTIVE only when kycStatus=APPROVED AND at least one payment method is ACTIVE
+        if (kycStatus === 'APPROVED') {
+            const activePaymentMethod = await prisma.paymentMethod.findFirst({
+                where: { merchantId, status: 'ACTIVE' },
+            });
+            const merchantStatus = activePaymentMethod ? 'ACTIVE' : 'INACTIVE';
+            await prisma.merchant.update({
+                where: { id: merchantId },
+                data: { status: merchantStatus },
+            });
+            console.log(`[MerchantService] Updated status from registration query: ${antomRegistrationStatus} -> kycStatus=${kycStatus}, merchantStatus=${merchantStatus}`);
+        }
+        else {
+            console.log(`[MerchantService] Updated status from registration query: ${antomRegistrationStatus} -> kycStatus=${kycStatus}`);
+        }
+    },
     async getPaymentMethods(merchantId) {
         return prisma.paymentMethod.findMany({
             where: { merchantId },

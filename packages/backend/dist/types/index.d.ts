@@ -1,5 +1,5 @@
 export type MerchantStatus = 'ACTIVE' | 'INACTIVE' | 'OFFBOARDED';
-export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPPLEMENT_REQUIRED';
+export type KycStatus = 'INIT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPPLEMENT_REQUIRED';
 export type PaymentMethodStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
 export type NotificationType = 'REGISTRATION_STATUS' | 'PAYMENT_METHOD_ACTIVATION_STATUS' | 'RISK_NOTIFICATION';
 export interface AntomResultInfo {
@@ -16,6 +16,7 @@ export interface AntomResult {
 export interface AntomResponse {
     result?: AntomResult;
     resultInfo?: AntomResultInfo;
+    registrationResult?: AntomRegistrationResult;
     [key: string]: unknown;
 }
 export interface AntomFileItem {
@@ -123,7 +124,7 @@ export interface AntomInquireRequest {
     registrationRequestId?: string;
     offboardingRequestId?: string;
     merchant: {
-        parentMerchantId: string;
+        integrationPartnerId: string;
         referenceMerchantId: string;
     };
 }

@@ -16,7 +16,7 @@ const { Title } = Typography;
 
 export default function MerchantDetail() {
   const { id: paramId } = useParams<{ id: string }>();
-  const { currentMerchant } = useAppContext();
+  const { currentMerchant, setCurrentMerchant } = useAppContext();
   const merchantId = paramId || currentMerchant?.id;
   const navigate = useNavigate();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
@@ -34,11 +34,15 @@ export default function MerchantDetail() {
       if (res.data.merchant) {
         const freshRes = await merchantApi.getById(mid);
         setMerchant(freshRes.data);
+        // Sync global context so the header KYC status tag also updates
+        if (freshRes.data && currentMerchant?.id === mid) {
+          setCurrentMerchant(freshRes.data);
+        }
       }
     } catch (err) {
       console.error('Failed to query registration status:', err);
     }
-  }, []);
+  }, [currentMerchant?.id, setCurrentMerchant]);
 
   const fetchMerchant = useCallback(async () => {
     if (!merchantId) return;
@@ -49,13 +53,17 @@ export default function MerchantDetail() {
       ]);
       setMerchant(merchantRes.data);
       setNotifications(notifyRes.data.data);
+      // Sync global context so the header KYC status tag also updates
+      if (merchantRes.data && currentMerchant?.id === merchantId) {
+        setCurrentMerchant(merchantRes.data);
+      }
     } catch (err) {
       console.error('Failed to fetch merchant:', err);
       message.error('Failed to load merchant details');
     } finally {
       setLoading(false);
     }
-  }, [merchantId]);
+  }, [merchantId, currentMerchant?.id, setCurrentMerchant]);
 
   // On page load: fetch merchant data, then query registration status once
   const initialLoadDone = useRef(false);

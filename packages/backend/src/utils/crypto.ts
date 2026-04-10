@@ -58,13 +58,33 @@ export function verifySignature(
 ): boolean {
   const contentToVerify = `POST ${httpUri}\n${clientId}.${time}.${body}`;
 
+  console.log(`[verifySignature] DEBUG - httpUri: ${httpUri}`);
+  console.log(`[verifySignature] DEBUG - clientId: ${clientId}`);
+  console.log(`[verifySignature] DEBUG - time: ${time}`);
+  console.log(`[verifySignature] DEBUG - body length: ${body.length}`);
+  console.log(`[verifySignature] DEBUG - contentToVerify (first 300 chars): ${contentToVerify.substring(0, 300)}`);
+  console.log(`[verifySignature] DEBUG - targetSignature (first 80 chars): ${targetSignature.substring(0, 80)}...`);
+
   const verifier = crypto.createVerify('SHA256');
   verifier.update(contentToVerify, 'utf8');
 
   const publicKeyPem = formatPublicKey(publicKeyBase64);
-  const decodedSig = Buffer.from(decodeURIComponent(targetSignature), 'base64');
+  console.log(`[verifySignature] DEBUG - publicKeyPem header: ${publicKeyPem.split('\n')[0]}`);
 
-  return verifier.verify(publicKeyPem, decodedSig);
+  const urlDecoded = decodeURIComponent(targetSignature);
+  console.log(`[verifySignature] DEBUG - urlDecoded signature (first 80 chars): ${urlDecoded.substring(0, 80)}...`);
+  console.log(`[verifySignature] DEBUG - urlDecoded === targetSignature: ${urlDecoded === targetSignature}`);
+  const decodedSig = Buffer.from(urlDecoded, 'base64');
+  console.log(`[verifySignature] DEBUG - decoded signature buffer length: ${decodedSig.length}`);
+
+  try {
+    const result = verifier.verify(publicKeyPem, decodedSig);
+    console.log(`[verifySignature] DEBUG - verify result: ${result}`);
+    return result;
+  } catch (err) {
+    console.error(`[verifySignature] DEBUG - verify threw error:`, err);
+    return false;
+  }
 }
 
 /**

@@ -22,9 +22,14 @@ app.use(express_1.default.json({
         req.rawBody = buf.toString('utf8');
     },
 }));
+// Global request logger - log every incoming request
+app.use((req, _res, next) => {
+    console.log(`[HTTP] ${req.method} ${req.originalUrl} from ${req.ip} | Content-Type: ${req.headers['content-type'] || '(none)'}`);
+    next();
+});
 // Routes
 app.use('/api/merchants', merchant_1.default);
-app.use('/api/notify', notify_1.default);
+app.use('/register', notify_1.default);
 app.use('/api/mock', mock_1.default);
 app.use('/api/wf', wfAuth_1.default);
 // GET /api/config - system configuration for frontend
@@ -74,12 +79,13 @@ app.put('/api/config', (req, res) => {
 });
 // Error handler
 app.use(errorHandler_1.errorHandler);
-// Create HTTP server and attach WebSocket
-const server = http_1.default.createServer(app);
-(0, websocket_1.setupWebSocket)(server);
-server.listen(config_1.config.port, () => {
-    console.log(`[Server] Mini-Shopify backend running on http://localhost:${config_1.config.port}`);
+// Create HTTP server (for local dev / internal access)
+const httpServer = http_1.default.createServer(app);
+(0, websocket_1.setupWebSocket)(httpServer);
+httpServer.listen(config_1.config.port, () => {
+    console.log(`[Server] HTTP server running on http://localhost:${config_1.config.port}`);
     console.log(`[Server] Mode: ${config_1.config.mockMode ? 'MOCK' : 'PRODUCTION'}`);
     console.log(`[Server] WebSocket: ws://localhost:${config_1.config.port}/ws`);
+    console.log(`[Server] Antom callback: https://minishopify.xyz/register/notification (via Nginx reverse proxy)`);
 });
 //# sourceMappingURL=app.js.map

@@ -226,6 +226,12 @@ export declare const merchantService: {
         activatedAt: Date | null;
         deactivatedAt: Date | null;
     }>;
+    /**
+     * Update local merchant status based on Antom registration status query result.
+     * Reuses the same status mapping logic as notifyService.
+     * Merchant becomes ACTIVE only when kycStatus=APPROVED AND at least one payment method is ACTIVE.
+     */
+    updateStatusFromRegistrationResult(merchantId: string, antomRegistrationStatus: string): Promise<void>;
     getPaymentMethods(merchantId: string): Promise<{
         paymentMethodType: string;
         merchantId: string;

@@ -347,6 +347,12 @@ router.post('/:id/setup-payments', async (req: Request, res: Response) => {
       return;
     }
 
+    // Update local status based on Antom registration result (if available)
+    const registrationResult = (antomResponse as Record<string, unknown>).registrationResult as Record<string, unknown> | undefined;
+    if (registrationResult?.registrationStatus) {
+      await merchantService.updateStatusFromRegistrationResult(id, String(registrationResult.registrationStatus));
+    }
+
     // In mock mode, schedule auto notifications
     if (config.mockMode) {
       mockService.scheduleRegisterNotifications(

@@ -154,7 +154,7 @@ router.post('/:id/register', async (req, res) => {
         // Create local registration
         const { registrationRequestId } = await merchantService_1.merchantService.register(id, paymentMethodTypes);
         // Call Antom API with nested merchant object (or mock)
-        const antomResponse = await antomService_1.antomService.register({
+        const registerRequest = {
             registrationRequestId,
             merchant: {
                 email: merchant.email,
@@ -165,7 +165,10 @@ router.post('/:id/register', async (req, res) => {
             kycInfo: merchant.kycInfo,
             entityAssociations: merchant.entityAssociations,
             paymentMethodTypes,
-        });
+        };
+        console.log('[Merchant] antomService.register >>> request:', JSON.stringify(registerRequest, null, 2));
+        const antomResponse = await antomService_1.antomService.register(registerRequest);
+        console.log('[Merchant] antomService.register <<< response:', JSON.stringify(antomResponse, null, 2));
         // Return response (use resultInfo if available, fallback to result)
         const resultInfo = antomResponse.resultInfo || antomResponse.result;
         const resultStatus = resultInfo?.resultStatus;
@@ -207,7 +210,9 @@ router.post('/:id/setup-payments', async (req, res) => {
         // Step 1: Save WF account ID
         await merchantService_1.merchantService.updateWfAccount(id, wfAccountId);
         // Step 2: Query KYB info from Antom using WF access token
+        console.log('[Merchant] antomService.queryKybInfo >>> request: accessToken=%s, customerId=%s', accessToken, customerId || '');
         const kybResult = await antomService_1.antomService.queryKybInfo(accessToken, customerId || '');
+        console.log('[Merchant] antomService.queryKybInfo <<< response: success=%s, error=%s', kybResult.success, kybResult.error || 'none');
         if (!kybResult.success || !kybResult.kybData) {
             res.status(400).json({ success: false, failedStep: 'queryKyb', error: kybResult.error || 'Failed to query KYB information' });
             return;
@@ -263,13 +268,13 @@ router.post('/:id/setup-payments', async (req, res) => {
         }
         // Step 4: Register with all payment methods
         currentStep = 'register';
-        const paymentMethodTypes = ['VISA', 'MASTERCARD', 'DISCOVER', 'JCB', 'DINERS', 'GOOGLEPAY', 'APPLEPAY', 'ALIPAY_HK', 'NAVER_PAY', 'KAKAO_PAY', 'TOSS_PAY', 'PAYNOW'];
+        const paymentMethodTypes = ['VISA', 'MASTERCARD', 'ALIPAY_HK', 'PAYNOW'];
         const { registrationRequestId } = await merchantService_1.merchantService.register(id, paymentMethodTypes);
         // Reload merchant to get fresh data
         const updatedMerchant = await merchantService_1.merchantService.getById(id);
         let antomResponse;
         try {
-            antomResponse = await antomService_1.antomService.register({
+            const registerRequest = {
                 registrationRequestId,
                 merchant: {
                     email: merchant.email,
@@ -280,7 +285,10 @@ router.post('/:id/setup-payments', async (req, res) => {
                 kycInfo: updatedMerchant?.kycInfo || null,
                 entityAssociations: updatedMerchant?.entityAssociations || [],
                 paymentMethodTypes,
-            });
+            };
+            console.log('[Merchant] antomService.register (setup-payments) >>> request:', JSON.stringify(registerRequest, null, 2));
+            antomResponse = await antomService_1.antomService.register(registerRequest);
+            console.log('[Merchant] antomService.register (setup-payments) <<< response:', JSON.stringify(antomResponse, null, 2));
         }
         catch (registerErr) {
             console.error('[Merchant] Antom register call failed:', registerErr);
@@ -292,7 +300,6 @@ router.post('/:id/setup-payments', async (req, res) => {
             });
             return;
         }
-        console.log('[Merchant] Antom register response:', JSON.stringify(antomResponse, null, 2));
         // Check if Antom API returned a failure
         const resultInfo = antomResponse.resultInfo || antomResponse.result;
         const resultStatus = resultInfo?.resultStatus;
@@ -306,6 +313,11 @@ router.post('/:id/setup-payments', async (req, res) => {
             });
             return;
         }
+        // Update local status based on Antom registration result (if available)
+        const registrationResult = antomResponse.registrationResult;
+        if (registrationResult?.registrationStatus) {
+            await merchantService_1.merchantService.updateStatusFromRegistrationResult(id, String(registrationResult.registrationStatus));
+        }
         // In mock mode, schedule auto notifications
         if (config_1.config.mockMode) {
             mockService_1.mockService.scheduleRegisterNotifications(registrationRequestId, paymentMethodTypes, merchant.referenceMerchantId || merchant.id);
@@ -318,6 +330,7 @@ router.post('/:id/setup-payments', async (req, res) => {
     }
 });
 // GET /api/merchants/:id/registration-status - Query registration status (guide section 4.2)
+// Called when user opens merchant detail page; updates local status based on Antom response
 router.get('/:id/registration-status', async (req, res) => {
     try {
         const id = paramStr(req.params.id);
@@ -330,11 +343,21 @@ router.get('/:id/registration-status', async (req, res) => {
             res.status(400).json({ error: 'Merchant has not been registered yet' });
             return;
         }
-        const antomResponse = await antomService_1.antomService.inquireRegistrationStatus({
+        const inquireRequest = {
             registrationRequestId: merchant.registrationRequestId,
             referenceMerchantId: merchant.referenceMerchantId || merchant.id,
-        });
-        res.json(antomResponse);
+        };
+        console.log('[Merchant] antomService.inquireRegistrationStatus >>> request:', JSON.stringify(inquireRequest, null, 2));
+        const antomResponse = await antomService_1.antomService.inquireRegistrationStatus(inquireRequest);
+        console.log('[Merchant] antomService.inquireRegistrationStatus <<< response:', JSON.stringify(antomResponse, null, 2));
+        // Update local merchant status based on Antom registration result
+        const registrationResult = antomResponse.registrationResult;
+        if (registrationResult?.registrationStatus) {
+            await merchantService_1.merchantService.updateStatusFromRegistrationResult(id, registrationResult.registrationStatus);
+        }
+        // Return Antom response along with refreshed merchant data
+        const updatedMerchant = await merchantService_1.merchantService.getById(id);
+        res.json({ ...antomResponse, merchant: updatedMerchant });
     }
     catch (err) {
         console.error('[Merchant] Registration status error:', err);
@@ -357,10 +380,13 @@ router.post('/:id/offboard', async (req, res) => {
         // Generate offboardingRequestId and store it
         const { offboardingRequestId } = await merchantService_1.merchantService.offboard(id);
         // Call Antom API with separate offboardingRequestId
-        const antomResponse = await antomService_1.antomService.offboard({
+        const offboardRequest = {
             offboardingRequestId,
             referenceMerchantId: merchant.referenceMerchantId || merchant.id,
-        });
+        };
+        console.log('[Merchant] antomService.offboard >>> request:', JSON.stringify(offboardRequest, null, 2));
+        const antomResponse = await antomService_1.antomService.offboard(offboardRequest);
+        console.log('[Merchant] antomService.offboard <<< response:', JSON.stringify(antomResponse, null, 2));
         // In mock mode, schedule offboard notification
         if (config_1.config.mockMode) {
             mockService_1.mockService.scheduleOffboardNotification(offboardingRequestId, merchant.referenceMerchantId || merchant.id);
@@ -402,7 +428,9 @@ router.post('/:id/payment-methods/:pmId/deactivate', async (req, res) => {
         }
         // Call Antom API (or mock)
         if (merchant.registrationRequestId) {
-            await antomService_1.antomService.deactivate(merchant.registrationRequestId, pm.paymentMethodType);
+            console.log('[Merchant] antomService.deactivate >>> request: registrationRequestId=%s, paymentMethodType=%s', merchant.registrationRequestId, pm.paymentMethodType);
+            const deactivateResponse = await antomService_1.antomService.deactivate(merchant.registrationRequestId, pm.paymentMethodType);
+            console.log('[Merchant] antomService.deactivate <<< response:', JSON.stringify(deactivateResponse, null, 2));
         }
         await merchantService_1.merchantService.deactivatePaymentMethod(pmId);
         res.json({ success: true, paymentMethodStatus: 'INACTIVE' });

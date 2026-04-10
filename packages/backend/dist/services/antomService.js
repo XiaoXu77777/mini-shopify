@@ -358,7 +358,7 @@ exports.antomService = {
         }
         const requestBody = {
             merchant: {
-                parentMerchantId,
+                integrationPartnerId: parentMerchantId,
                 referenceMerchantId: data.referenceMerchantId,
             },
         };
@@ -367,22 +367,6 @@ exports.antomService = {
         }
         if (data.offboardingRequestId) {
             requestBody.offboardingRequestId = data.offboardingRequestId;
-        }
-        if (config_1.config.mockMode) {
-            // In mock mode, return current status from DB (handled at route level)
-            return {
-                resultInfo: {
-                    resultStatus: 'S',
-                    resultCode: 'SUCCESS',
-                    resultMessage: 'success',
-                },
-                registrationResult: {
-                    registrationStatus: 'PROCESSING',
-                    registrationRequestId: data.registrationRequestId,
-                    parentMerchantId,
-                    referenceMerchantId: data.referenceMerchantId,
-                },
-            };
         }
         return callWithRetry({
             path: INQUIRE_REGISTRATION_PATH,
@@ -405,21 +389,6 @@ exports.antomService = {
                 referenceMerchantId: data.referenceMerchantId,
             },
         };
-        if (config_1.config.mockMode) {
-            return {
-                resultInfo: {
-                    resultStatus: 'S',
-                    resultCode: 'SUCCESS',
-                    resultMessage: 'success',
-                },
-                merchantOffboardingResult: {
-                    offboardingStatus: 'PROCESSING',
-                    offboardingRequestId: data.offboardingRequestId,
-                    parentMerchantId,
-                    referenceMerchantId: data.referenceMerchantId,
-                },
-            };
-        }
         return callWithRetry({
             path: OFFBOARD_PATH,
             body: requestBody,
@@ -429,15 +398,6 @@ exports.antomService = {
      * Deactivate a payment method.
      */
     async deactivate(registrationRequestId, paymentMethodType) {
-        if (config_1.config.mockMode) {
-            return {
-                resultInfo: {
-                    resultStatus: 'S',
-                    resultCode: 'SUCCESS',
-                    resultMessage: 'success',
-                },
-            };
-        }
         return callWithRetry({
             path: DEACTIVATE_PATH,
             body: { registrationRequestId, paymentMethodType },
@@ -449,8 +409,9 @@ exports.antomService = {
      */
     async queryKybInfo(accessToken, customerId) {
         if (config_1.config.mockMode) {
+            console.log(`[Antom][Mock] queryKybInfo >>> request: accessToken=${accessToken}, customerId=${customerId}`);
             // Mock KYB data for demo
-            return {
+            const mockResult = {
                 success: true,
                 kybData: {
                     // Company info
@@ -603,6 +564,8 @@ exports.antomService = {
                     ],
                 },
             };
+            console.log(`[Antom][Mock] queryKybInfo <<< response: success=${mockResult.success}, kybData keys=${Object.keys(mockResult.kybData)}`);
+            return mockResult;
         }
         try {
             // queryKybInfo uses WF credentials, not Antom credentials
