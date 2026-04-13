@@ -4,7 +4,8 @@ export type PaymentMethodStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
 export type NotificationType =
   | 'REGISTRATION_STATUS'
   | 'PAYMENT_METHOD_ACTIVATION_STATUS'
-  | 'RISK_NOTIFICATION';
+  | 'RISK_NOTIFICATION'
+  | 'MERCHANT_RISK_SCORE_NOTIFICATION';
 
 export interface Merchant {
   id: string;
@@ -13,6 +14,7 @@ export interface Merchant {
   email: string;
   wfAccountId: string | null;
   referenceMerchantId: string | null;
+  antomMerchantId: string | null;
   kycStatus: KycStatus;
   riskLevel: string | null;
   riskReasonCodes: string[] | null;

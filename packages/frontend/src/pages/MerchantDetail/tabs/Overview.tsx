@@ -10,8 +10,15 @@ import {
   PoweroffOutlined,
 } from '@ant-design/icons';
 import type { Merchant, Notification } from '../../../types';
+import { PAYMENT_METHOD_OPTIONS } from '../../../utils/constants';
 
 const { Text } = Typography;
+
+// Build a lookup map for payment method type labels
+const PM_TYPE_LABEL_MAP: Record<string, string> = {};
+for (const opt of PAYMENT_METHOD_OPTIONS) {
+  PM_TYPE_LABEL_MAP[opt.value] = opt.label;
+}
 
 interface Props {
   merchant: Merchant;
@@ -34,6 +41,9 @@ export default function OverviewTab({ merchant, notifications }: Props) {
           </Descriptions.Item>
           <Descriptions.Item label="Registration Request ID">
             {merchant.registrationRequestId || <Text type="secondary">Not registered</Text>}
+          </Descriptions.Item>
+          <Descriptions.Item label="Antom Merchant ID">
+            {merchant.antomMerchantId || <Text type="secondary">Not assigned</Text>}
           </Descriptions.Item>
           <Descriptions.Item label="Created">
             {new Date(merchant.createdAt).toLocaleString()}
@@ -193,15 +203,35 @@ function buildTimeline(merchant: Merchant, notifications: Notification[]) {
       }
 
       case 'PAYMENT_METHOD_ACTIVATION_STATUS': {
-        const pmType = payload.paymentMethodType as string || 'Unknown';
-        const pmStatus = payload.paymentMethodStatus as string || '';
-        const isActive = pmStatus === 'ACTIVE';
+        // Extract from nested paymentMethodStatusChangeEvent (actual Antom format) or flat fields (legacy)
+        const pmEvent = payload.paymentMethodStatusChangeEvent as Record<string, unknown> | undefined;
+        const pmTypeCode = (pmEvent?.paymentMethodType as string)
+          || (payload.paymentMethodDetail as Record<string, unknown> | undefined)?.paymentMethodType as string
+          || payload.paymentMethodType as string
+          || 'Unknown';
+        const pmTypeLabel = PM_TYPE_LABEL_MAP[pmTypeCode] || pmTypeCode;
+
+        const rawStatus = (pmEvent?.currentStatus as string)
+          || (payload.paymentMethodDetail as Record<string, unknown> | undefined)?.paymentMethodStatus as string
+          || payload.paymentMethodStatus as string
+          || '';
+        // Map Antom status to display status
+        const isActive = rawStatus === 'SUCCESS' || rawStatus === 'ACTIVE';
+        const isFail = rawStatus === 'FAIL' || rawStatus === 'INACTIVE';
+        const failReason = pmEvent?.failReason as string | undefined;
+
         items.push({
-          color: isActive ? 'green' : 'red',
+          color: isActive ? 'green' : isFail ? 'red' : 'blue',
           dot: <CreditCardOutlined />,
           children: (
             <div>
-              <Text strong>{pmType} {isActive ? 'Activated' : 'Deactivated'}</Text>
+              <Text strong>{pmTypeLabel} {isActive ? 'Activated' : isFail ? 'Failed' : 'Processing'}</Text>
+              {failReason && (
+                <>
+                  <br />
+                  <Text type="danger" style={{ fontSize: 12 }}>{failReason}</Text>
+                </>
+              )}
               <br />
               <Text type="secondary" style={{ fontSize: 12 }}>{time}</Text>
             </div>
@@ -210,9 +240,11 @@ function buildTimeline(merchant: Merchant, notifications: Notification[]) {
         break;
       }
 
-      case 'RISK_NOTIFICATION': {
-        const riskLevel = payload.riskLevel as string || 'UNKNOWN';
-        const riskCodes = payload.riskReasonCodes as string[] | undefined;
+      case 'RISK_NOTIFICATION':
+      case 'MERCHANT_RISK_SCORE_NOTIFICATION': {
+        const riskResult = payload.riskScoreResult as Record<string, unknown> | undefined;
+        const riskLevel = (riskResult?.riskLevel as string) || payload.riskLevel as string || 'UNKNOWN';
+        const riskCodes = (riskResult?.reasonCodes as string[]) || payload.riskReasonCodes as string[] | undefined;
         items.push({
           color: riskLevel === 'HIGH' ? 'red' : riskLevel === 'MEDIUM' ? 'orange' : 'blue',
           dot: <WarningOutlined />,

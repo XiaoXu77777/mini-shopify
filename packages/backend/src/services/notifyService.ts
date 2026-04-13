@@ -22,6 +22,7 @@ function getReferenceMerchantId(notification: AntomNotification): string | undef
     notification.merchantRegistrationResult?.referenceMerchantId ||
     notification.merchantOffboardingResult?.referenceMerchantId ||
     notification.paymentMethodStatusChangeEvent?.merchantId ||
+    notification.riskScoreResult?.referenceMerchantId ||
     undefined
   );
 }
@@ -131,6 +132,7 @@ export const notifyService = {
         await handlePaymentMethodActivation(merchant.id, notification);
         break;
       case 'RISK_NOTIFICATION':
+      case 'MERCHANT_RISK_SCORE_NOTIFICATION':
         await handleRiskNotification(merchant.id, notification);
         break;
     }
@@ -196,6 +198,12 @@ async function handleRegistrationStatus(
   const updateData: Record<string, unknown> = {
     kycStatus,
   };
+
+  // Save Antom-assigned merchant ID (parentMerchantId in registration result)
+  const antomMerchantId = notification.merchantRegistrationResult?.parentMerchantId;
+  if (antomMerchantId) {
+    updateData.antomMerchantId = antomMerchantId;
+  }
 
   if (kycStatus === 'REJECTED' || kycStatus === 'SUPPLEMENT_REQUIRED') {
     updateData.status = 'INACTIVE';
@@ -282,6 +290,19 @@ async function handlePaymentMethodActivation(
   // Map Antom status (SUCCESS/FAIL/PROCESSING) to internal status (ACTIVE/INACTIVE/PENDING)
   const pmStatus = mapPaymentMethodStatus(rawStatus);
 
+  // Save Antom-assigned merchant ID if not yet recorded
+  // paymentMethodStatusChangeEvent.merchantAccountId is the same as parentMerchantId in registration result
+  const antomMerchantId = pmEvent?.merchantAccountId;
+  if (antomMerchantId) {
+    const currentMerchantForId = await prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (currentMerchantForId && !currentMerchantForId.antomMerchantId) {
+      await prisma.merchant.update({
+        where: { id: merchantId },
+        data: { antomMerchantId },
+      });
+    }
+  }
+
   const pm = await prisma.paymentMethod.findFirst({
     where: { merchantId, paymentMethodType: pmType },
   });
@@ -319,15 +340,21 @@ async function handleRiskNotification(
   merchantId: string,
   notification: AntomNotification
 ) {
+  // Support both nested riskScoreResult (actual Antom format: MERCHANT_RISK_SCORE_NOTIFICATION)
+  // and flat fields (legacy RISK_NOTIFICATION / mock)
+  const riskResult = notification.riskScoreResult;
+  const riskLevel = riskResult?.riskLevel || notification.riskLevel;
+  const riskReasonCodes = riskResult?.reasonCodes || notification.riskReasonCodes;
+
   await prisma.merchant.update({
     where: { id: merchantId },
     data: {
-      riskLevel: notification.riskLevel,
-      riskReasonCodes: notification.riskReasonCodes
-        ? JSON.stringify(notification.riskReasonCodes)
+      riskLevel: riskLevel,
+      riskReasonCodes: riskReasonCodes
+        ? JSON.stringify(riskReasonCodes)
         : undefined,
     },
   });
 
-  console.log(`[Notify] Risk notification for merchant ${merchantId}: ${notification.riskLevel}`);
+  console.log(`[Notify] Risk notification for merchant ${merchantId}: riskLevel=${riskLevel}, reasonCodes=${JSON.stringify(riskReasonCodes)}`);
 }

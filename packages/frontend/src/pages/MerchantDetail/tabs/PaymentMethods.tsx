@@ -1,7 +1,14 @@
 import { Table, Button, Popconfirm, message } from 'antd';
 import { merchantApi } from '../../../services/merchantApi';
 import { PmStatusTag } from '../../../components/StatusTags';
+import { PAYMENT_METHOD_OPTIONS } from '../../../utils/constants';
 import type { Merchant, PaymentMethod } from '../../../types';
+
+// Build a lookup map: e.g. { 'ALIPAY_HK': 'AlipayHK', 'VISA': 'Visa', ... }
+const PM_TYPE_LABEL_MAP: Record<string, string> = {};
+for (const opt of PAYMENT_METHOD_OPTIONS) {
+  PM_TYPE_LABEL_MAP[opt.value] = opt.label;
+}
 
 interface Props {
   merchant: Merchant;
@@ -25,6 +32,7 @@ export default function PaymentMethodsTab({ merchant, onRefresh }: Props) {
       title: 'Payment Method',
       dataIndex: 'paymentMethodType',
       key: 'paymentMethodType',
+      render: (val: string) => PM_TYPE_LABEL_MAP[val] || val,
     },
     {
       title: 'Status',

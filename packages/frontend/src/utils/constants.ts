@@ -39,4 +39,5 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   REGISTRATION_STATUS: 'Registration Status',
   PAYMENT_METHOD_ACTIVATION_STATUS: 'Payment Method Activation',
   RISK_NOTIFICATION: 'Risk Notification',
+  MERCHANT_RISK_SCORE_NOTIFICATION: 'Merchant Risk Score',
 };

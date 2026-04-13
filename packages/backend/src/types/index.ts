@@ -9,7 +9,8 @@ export type PaymentMethodStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
 export type NotificationType =
   | 'REGISTRATION_STATUS'
   | 'PAYMENT_METHOD_ACTIVATION_STATUS'
-  | 'RISK_NOTIFICATION';
+  | 'RISK_NOTIFICATION'
+  | 'MERCHANT_RISK_SCORE_NOTIFICATION';
 
 // --- Antom API result types ---
 
@@ -227,6 +228,16 @@ export interface AntomNotification {
   paymentMethodStatus?: string;
   riskLevel?: string;
   riskReasonCodes?: string[];
+
+  // Risk score notification (actual Antom callback format: MERCHANT_RISK_SCORE_NOTIFICATION)
+  riskScoreResult?: {
+    merchantId?: string;
+    referenceMerchantId?: string;
+    notifiedAt?: number;
+    reasonCodes?: string[];
+    riskLevel?: string;
+    [key: string]: unknown;
+  };
 
   // Legacy flat fields for SUPPLEMENT_REQUIRED (demo extension)
   registrationStatus?: string;

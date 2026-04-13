@@ -5,7 +5,7 @@ const config_1 = require("../utils/config");
 const crypto_1 = require("../utils/crypto");
 // API paths (production format, sandbox prefix will be added dynamically)
 const REGISTER_PATH = '/ams/api/v1/merchant/register';
-const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchants/inquiryRegistrationStatus';
+const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchant/inquiryRegistrationStatus';
 const OFFBOARD_PATH = '/ams/api/v1/merchant/offboard';
 const DEACTIVATE_PATH = '/ams/api/v1/merchant/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';

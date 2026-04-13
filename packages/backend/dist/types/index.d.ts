@@ -1,7 +1,7 @@
 export type MerchantStatus = 'ACTIVE' | 'INACTIVE' | 'OFFBOARDED';
 export type KycStatus = 'INIT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPPLEMENT_REQUIRED';
 export type PaymentMethodStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
-export type NotificationType = 'REGISTRATION_STATUS' | 'PAYMENT_METHOD_ACTIVATION_STATUS' | 'RISK_NOTIFICATION';
+export type NotificationType = 'REGISTRATION_STATUS' | 'PAYMENT_METHOD_ACTIVATION_STATUS' | 'RISK_NOTIFICATION' | 'MERCHANT_RISK_SCORE_NOTIFICATION';
 export interface AntomResultInfo {
     resultCode: string;
     resultCodeId?: string;
@@ -190,6 +190,14 @@ export interface AntomNotification {
     paymentMethodStatus?: string;
     riskLevel?: string;
     riskReasonCodes?: string[];
+    riskScoreResult?: {
+        merchantId?: string;
+        referenceMerchantId?: string;
+        notifiedAt?: number;
+        reasonCodes?: string[];
+        riskLevel?: string;
+        [key: string]: unknown;
+    };
     registrationStatus?: string;
     kycStatus?: string;
     rejectedFields?: string[];
