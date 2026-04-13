@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { notification } from 'antd';
 import type { WsMessage } from '../types';
-import { NOTIFICATION_TYPE_LABELS } from '../utils/constants';
+import { NOTIFICATION_TYPE_LABELS, PAYMENT_METHOD_OPTIONS } from '../utils/constants';
+
+const PM_TYPE_LABEL_MAP: Record<string, string> = {};
+for (const opt of PAYMENT_METHOD_OPTIONS) {
+  PM_TYPE_LABEL_MAP[opt.value] = opt.label;
+}
 
 export default function useWebSocket(
   merchantId: string | null,
@@ -86,15 +91,30 @@ export default function useWebSocket(
 function buildNotificationDescription(msg: WsMessage): string {
   const data = msg.data;
   const type = data.notificationType as string;
+  const regResult = data.merchantRegistrationResult as Record<string, unknown> | undefined;
+  const pmEvent = data.paymentMethodStatusChangeEvent as Record<string, unknown> | undefined;
+  const pmDetail = data.paymentMethodDetail as Record<string, unknown> | undefined;
+  const riskResult = data.riskScoreResult as Record<string, unknown> | undefined;
 
   switch (type) {
-    case 'REGISTRATION_STATUS':
-      return `Registration status: ${data.registrationStatus || 'Unknown'}`;
-    case 'PAYMENT_METHOD_ACTIVATION_STATUS':
-      return `${data.paymentMethodType}: ${data.paymentMethodStatus}`;
+    case 'REGISTRATION_STATUS': {
+      const status = (regResult?.registrationStatus as string) || (data.registrationStatus as string) || 'Unknown';
+      return status;
+    }
+    case 'PAYMENT_METHOD_ACTIVATION_STATUS': {
+      const pmType = (pmEvent?.paymentMethodType as string) || (pmDetail?.paymentMethodType as string) || (data.paymentMethodType as string) || 'Unknown';
+      const pmLabel = PM_TYPE_LABEL_MAP[pmType] || pmType;
+      const rawStatus = (pmEvent?.currentStatus as string) || (pmDetail?.paymentMethodStatus as string) || (data.paymentMethodStatus as string) || '';
+      const isActive = rawStatus === 'SUCCESS' || rawStatus === 'ACTIVE';
+      const isFail = rawStatus === 'FAIL' || rawStatus === 'INACTIVE';
+      return `${pmLabel}: ${isActive ? 'Activated' : isFail ? 'Failed' : 'Processing'}`;
+    }
     case 'RISK_NOTIFICATION':
-      return `Risk level: ${data.riskLevel}`;
+    case 'MERCHANT_RISK_SCORE_NOTIFICATION': {
+      const riskLevel = (riskResult?.riskLevel as string) || (data.riskLevel as string) || 'Unknown';
+      return `Level: ${riskLevel}`;
+    }
     default:
-      return JSON.stringify(data);
+      return type || 'New notification';
   }
 }
