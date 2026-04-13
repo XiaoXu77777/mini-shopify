@@ -31,7 +31,7 @@ app.use((req, _res, next) => {
 
 // Routes
 app.use('/api/merchants', merchantRouter);
-app.use('/register', notifyRouter);
+app.use('/api/notify', notifyRouter);
 app.use('/api/mock', mockRouter);
 app.use('/api/wf', wfAuthRouter);
 
@@ -87,5 +87,5 @@ httpServer.listen(config.port, () => {
   console.log(`[Server] HTTP server running on http://localhost:${config.port}`);
   console.log(`[Server] Mode: ${config.mockMode ? 'MOCK' : 'PRODUCTION'}`);
   console.log(`[Server] WebSocket: ws://localhost:${config.port}/ws`);
-  console.log(`[Server] Antom callback: https://minishopify.xyz/register/notification (via Nginx reverse proxy)`);
+  console.log(`[Server] Antom callback: https://minishopify.xyz/api/notify/register (via Nginx reverse proxy)`);
 });

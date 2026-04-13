@@ -4,14 +4,14 @@
 
 本文档描述如何集成 Antom 商户入驻相关接口，实现二级商户的快速入驻。集成接口包括：
 
-| 接口 | 用途 |
-|------|------|
-| `/auth` | WF OAuth2.0 授权链接 |
-| `/amsin/api/v1/oauth/applyToken` | WF 申请 Token |
-| `/ams/v1/merchant/queryKybInfo` | 查询二级商户 KYB 信息 |
-| `/ams/api/v1/merchant/register` | 二级商户入驻 |
-| `/ams/api/v1/merchants/inquiryRegistrationStatus` | 入驻结果查询 |
-| `notifyRegistration` | 入驻结果通知（回调） |
+| 接口 | 用途                    |
+|------|-----------------------|
+| `/auth` | WF OAuth2.0 授权链接      |
+| `/amsin/api/v1/oauth/applyToken` | WF 申请 Token           |
+| `/ams/v1/merchant/queryKybInfo` | 查询二级商户 KYB 信息         |
+| `/ams/api/v1/merchant/register` | 二级商户入驻                |
+| `/ams/api/v1/merchants/inquiryRegistrationStatus` | 入驻结果查询                |
+| `notifyRegistration` | 入驻结果&支付方式结果&风险分通知（回调） |
 
 ---
 
@@ -533,9 +533,9 @@
 
 ---
 
-### 3.6 入驻结果通知（回调）
+### 3.6 通知（回调）
 
-**接口路径**: `POST {your_callback_url}/register/notification`
+**接口路径**: `POST {your_callback_url}`
 
 **说明**: 此接口由甲方实现，Antom 在入驻状态变更时异步回调。
 
@@ -881,90 +881,3 @@ async function callWithRetry(fn, maxRetries = 3, baseDelayMs = 1000) {
 - `ACTIVE`: `kycStatus = APPROVED` 且至少一个支付方式 `status = ACTIVE`
 - `INACTIVE`: 初始状态或 KYC 未通过
 - `OFFBOARDED`: 已下线
-
----
-
-## 八、测试与调试
-
-### 8.1 沙箱环境
-
-使用沙箱环境进行测试：
-1. 设置 `ANTOM_SANDBOX=true`
-2. API 路径自动添加 `/sandbox/` 前缀
-3. 使用沙箱测试账号
-
-### 8.2 签名调试
-
-签名失败常见原因：
-1. 请求体序列化顺序不一致
-2. 时间戳格式错误（应为毫秒）
-3. URL 编码问题
-4. 密钥格式错误
-
-调试建议：
-```javascript
-console.log('Content to sign:', contentToSign);
-console.log('Signature header:', signatureHeader);
-```
-
-### 8.3 回调测试
-
-可使用 Mock 工具模拟回调：
-```bash
-curl -X POST https://your-domain.com/register/notification \
-  -H "Content-Type: application/json" \
-  -H "client-id: YOUR_CLIENT_ID" \
-  -H "Request-Time: $(date +%s%3N)" \
-  -H "Signature: algorithm=RSA256,keyVersion=1,signature=xxx" \
-  -d '{
-    "notifyId": "TEST_NOTIFY_001",
-    "notificationType": "REGISTRATION_STATUS",
-    "registrationRequestId": "REG_TEST_001",
-    "merchantRegistrationResult": {
-      "registrationStatus": "SUCCESS"
-    }
-  }'
-```
-
----
-
-## 九、附录
-
-### 9.1 支持的支付方式
-
-| 支付方式 | 说明 |
-|---------|------|
-| VISA | Visa 卡 |
-| MASTERCARD | Mastercard 卡 |
-| ALIPAY_HK | 支付宝香港 |
-| PAYNOW | PayNow（新加坡） |
-| FPS | 转数快（香港） |
-
-### 9.2 地区代码
-
-常用地区代码：
-
-| 代码 | 地区 |
-|------|------|
-| CN | 中国大陆 |
-| HK | 香港 |
-| SG | 新加坡 |
-| MY | 马来西亚 |
-| US | 美国 |
-
-### 9.3 MCC 码
-
-常用 MCC 码：
-
-| MCC | 说明 |
-|-----|------|
-| 5734 | 计算机软件商店 |
-| 5814 | 快餐店 |
-| 5942 | 书店 |
-| 5999 | 其他零售店 |
-
----
-
-## 十、联系与支持
-
-如有集成问题，请联系 Antom 技术支持团队。

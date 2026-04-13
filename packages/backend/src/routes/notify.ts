@@ -5,8 +5,8 @@ import type { AntomNotification } from '../types';
 
 const router = Router();
 
-// POST /register/notification - Receive Antom async notification (guide section 4.3)
-router.post('/notification', signatureVerify, async (req: Request, res: Response) => {
+// POST /api/notify/register - Receive Antom async notification (guide section 4.3)
+router.post('/register', signatureVerify, async (req: Request, res: Response) => {
   try {
     const notification = req.body as AntomNotification;
     console.log('[Notify] Antom callback <<< received notification:', JSON.stringify(notification, null, 2));
