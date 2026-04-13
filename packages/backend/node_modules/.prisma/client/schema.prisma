@@ -14,7 +14,7 @@ model Merchant {
   email                 String
   wfAccountId           String?
   referenceMerchantId   String?  @unique
-  kycStatus             String   @default("PENDING")
+  kycStatus             String   @default("INIT")
   riskLevel             String?
   riskReasonCodes       String?
   registrationRequestId String?
