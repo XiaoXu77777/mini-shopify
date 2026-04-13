@@ -4,6 +4,7 @@ import type { DropdownProps } from 'antd';
 import {
   HomeOutlined,
   ShopOutlined,
+  DollarOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -17,6 +18,7 @@ const { Text } = Typography;
 const menuItems = [
   { key: '/', icon: <HomeOutlined />, label: 'Home' },
   { key: '/merchant', icon: <ShopOutlined />, label: 'Merchant' },
+  { key: '/payouts', icon: <DollarOutlined />, label: 'Payouts' },
 ];
 
 export default function AppLayout() {
@@ -29,6 +31,7 @@ export default function AppLayout() {
 
   const selectedKey = (() => {
     if (location.pathname === '/') return '/';
+    if (location.pathname.match(/^\/merchants\/[^/]+\/payouts/)) return '/payouts';
     if (location.pathname.startsWith('/merchant')) return '/merchant';
     return '/';
   })();
@@ -40,6 +43,14 @@ export default function AppLayout() {
         navigate(`/merchants/${currentMerchant.id}`);
       } else {
         message.warning('Please select a store first from the dropdown above.');
+      }
+    } else if (key === '/payouts') {
+      if (!currentMerchant) {
+        message.warning('Please select a store first from the dropdown above.');
+      } else if (!currentMerchant.referenceMerchantId) {
+        message.warning('Please complete payment setup first before managing payouts.');
+      } else {
+        navigate(`/merchants/${currentMerchant.id}/payouts`);
       }
     } else {
       navigate(key);

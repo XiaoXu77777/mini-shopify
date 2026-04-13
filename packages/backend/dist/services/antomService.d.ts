@@ -78,6 +78,24 @@ export declare const antomService: {
         kybData?: Record<string, unknown>;
         error?: string;
     }>;
+    /**
+     * Query payout accounts for a merchant.
+     */
+    queryPayoutAccounts(referenceMerchantId: string, settlementCurrencyList: string[]): Promise<AntomResponse>;
+    /**
+     * Query payout settings for a merchant and currency.
+     */
+    queryPayoutSettings(referenceMerchantId: string, settlementCurrency: string): Promise<AntomResponse>;
+    /**
+     * Update payout settings for a merchant.
+     */
+    updatePayoutSettings(data: {
+        requestId: string;
+        referenceMerchantId: string;
+        settlementCurrency: string;
+        payoutActionType: string;
+        settlementSetting?: object;
+    }): Promise<AntomResponse>;
 };
 export {};
 //# sourceMappingURL=antomService.d.ts.map

@@ -90,6 +90,17 @@ export const merchantApi = {
     });
   },
 
+  // Payout management
+  queryPayoutAccounts(merchantId: string) {
+    return api.get(`/payouts/accounts/${merchantId}`);
+  },
+  queryPayoutSettings(merchantId: string, currency: string) {
+    return api.get(`/payouts/settings/${merchantId}`, { params: { currency } });
+  },
+  updatePayoutSettings(merchantId: string, data: { requestId: string; settlementCurrency: string; payoutActionType: string; settlementSetting?: Record<string, unknown> }) {
+    return api.put(`/payouts/settings/${merchantId}`, data);
+  },
+
   // Combined WF auth + KYB query + KYC fill + register
   setupPayments(merchantId: string, data: {
     wfAccountId: string;

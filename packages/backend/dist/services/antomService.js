@@ -9,6 +9,9 @@ const INQUIRE_REGISTRATION_PATH = '/ams/api/v1/merchant/inquiryRegistrationStatu
 const OFFBOARD_PATH = '/ams/api/v1/merchant/offboard';
 const DEACTIVATE_PATH = '/ams/api/v1/merchant/deactivate';
 const QUERY_KYB_PATH = '/ams/v1/merchant/queryKybInfo';
+const QUERY_PAYOUT_ACCOUNTS_PATH = '/ams/api/v1/payments/payouts/queryPayoutAccounts';
+const QUERY_PAYOUT_SETTINGS_PATH = '/ams/api/v1/payments/payouts/queryPayoutSettings';
+const UPDATE_PAYOUT_SETTINGS_PATH = '/ams/api/v1/payments/payouts/updatePayoutSettings';
 /**
  * Get the actual API path, inserting /sandbox/ prefix for sandbox environment.
  * Production: /ams/api/v1/merchants/register
@@ -687,6 +690,33 @@ exports.antomService = {
                 error: error instanceof Error ? error.message : 'Unknown error',
             };
         }
+    },
+    /**
+     * Query payout accounts for a merchant.
+     */
+    async queryPayoutAccounts(referenceMerchantId, settlementCurrencyList) {
+        return callWithRetry({
+            path: QUERY_PAYOUT_ACCOUNTS_PATH,
+            body: { referenceMerchantId, settlementCurrencyList },
+        });
+    },
+    /**
+     * Query payout settings for a merchant and currency.
+     */
+    async queryPayoutSettings(referenceMerchantId, settlementCurrency) {
+        return callWithRetry({
+            path: QUERY_PAYOUT_SETTINGS_PATH,
+            body: { referenceMerchantId, settlementCurrency },
+        });
+    },
+    /**
+     * Update payout settings for a merchant.
+     */
+    async updatePayoutSettings(data) {
+        return callWithRetry({
+            path: UPDATE_PAYOUT_SETTINGS_PATH,
+            body: data,
+        });
     },
 };
 //# sourceMappingURL=antomService.js.map

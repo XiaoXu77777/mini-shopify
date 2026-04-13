@@ -13,6 +13,7 @@ const merchant_1 = __importDefault(require("./routes/merchant"));
 const notify_1 = __importDefault(require("./routes/notify"));
 const mock_1 = __importDefault(require("./routes/mock"));
 const wfAuth_1 = __importDefault(require("./routes/wfAuth"));
+const payout_1 = __importDefault(require("./routes/payout"));
 const app = (0, express_1.default)();
 // CORS
 app.use((0, cors_1.default)());
@@ -32,6 +33,7 @@ app.use('/api/merchants', merchant_1.default);
 app.use('/api/notify', notify_1.default);
 app.use('/api/mock', mock_1.default);
 app.use('/api/wf', wfAuth_1.default);
+app.use('/api/payouts', payout_1.default);
 // GET /api/config - system configuration for frontend
 app.get('/api/config', (_req, res) => {
     res.json({

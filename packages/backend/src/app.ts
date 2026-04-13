@@ -8,6 +8,7 @@ import merchantRouter from './routes/merchant';
 import notifyRouter from './routes/notify';
 import mockRouter from './routes/mock';
 import wfAuthRouter from './routes/wfAuth';
+import payoutRouter from './routes/payout';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/merchants', merchantRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/mock', mockRouter);
 app.use('/api/wf', wfAuthRouter);
+app.use('/api/payouts', payoutRouter);
 
 // GET /api/config - system configuration for frontend
 app.get('/api/config', (_req, res) => {

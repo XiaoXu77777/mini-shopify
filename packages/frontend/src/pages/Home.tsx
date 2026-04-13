@@ -3,6 +3,7 @@ import {
   ShoppingCartOutlined,
   ShopOutlined,
   CreditCardOutlined,
+  DollarOutlined,
   GlobalOutlined,
   TruckOutlined,
 } from '@ant-design/icons';
@@ -87,6 +88,32 @@ export default function Home() {
       description: 'Enable payment processing to accept credit cards and other payment methods.',
       buttonText: 'Set Up Payments',
       onClick: handleSetupPayments,
+    },
+    {
+      icon: <DollarOutlined />,
+      title: 'Manage Payouts',
+      description: 'View and manage your settlement accounts and payout settings.',
+      buttonText: 'Manage Payouts',
+      onClick: async () => {
+        if (!currentMerchant) {
+          message.warning('Please select a store first from the dropdown above, or create a new store.');
+          return;
+        }
+        try {
+          const res = await merchantApi.getById(currentMerchant.id);
+          if (!res.data.referenceMerchantId) {
+            message.warning('Please complete payment setup first before managing payouts.');
+            return;
+          }
+          navigate(`/merchants/${currentMerchant.id}/payouts`);
+        } catch {
+          if (!currentMerchant.referenceMerchantId) {
+            message.warning('Please complete payment setup first before managing payouts.');
+            return;
+          }
+          navigate(`/merchants/${currentMerchant.id}/payouts`);
+        }
+      },
     },
     {
       icon: <TruckOutlined />,
