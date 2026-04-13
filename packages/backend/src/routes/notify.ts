@@ -11,12 +11,12 @@ router.post('/register', signatureVerify, async (req: Request, res: Response) =>
     const notification = req.body as AntomNotification;
     console.log('[Notify] Antom callback <<< received notification:', JSON.stringify(notification, null, 2));
 
-    // Validate required fields: notifyId + (notificationType or notifyType)
+    // Validate required fields: notificationType or notifyType
     const notificationType = notification.notificationType || notification.notifyType;
-    if (!notification.notifyId || !notificationType) {
+    if (!notificationType) {
       // Per guide: still return success format even on error
       const errorResponse = {
-        result: { resultCode: 'INVALID_PARAM', resultValue: 'F', message: 'Missing required fields' },
+        result: { resultCode: 'INVALID_PARAM', resultValue: 'F', message: 'Missing notificationType' },
       };
       console.log('[Notify] Antom callback >>> response (invalid):', JSON.stringify(errorResponse, null, 2));
       res.status(400).json(errorResponse);

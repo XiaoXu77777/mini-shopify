@@ -393,10 +393,18 @@ router.get('/:id/registration-status', async (req: Request, res: Response) => {
     const antomResponse = await antomService.inquireRegistrationStatus(inquireRequest);
     console.log('[Merchant] antomService.inquireRegistrationStatus <<< response:', JSON.stringify(antomResponse, null, 2));
 
-    // Update local merchant status based on Antom registration result
-    const registrationResult = antomResponse.registrationResult;
-    if (registrationResult?.registrationStatus) {
-      await merchantService.updateStatusFromRegistrationResult(id, registrationResult.registrationStatus);
+    // Per doc: result.resultStatus indicates API call success, not business result
+    const resultInfo = antomResponse.resultInfo || antomResponse.result;
+    const resultStatus = resultInfo?.resultStatus;
+
+    if (resultStatus === 'S') {
+      // Actual registration result is in registrationResult field
+      const registrationResult = antomResponse.registrationResult;
+      if (registrationResult?.registrationStatus) {
+        await merchantService.updateStatusFromRegistrationResult(id, registrationResult.registrationStatus);
+      }
+    } else if (resultStatus === 'F') {
+      console.warn(`[Merchant] inquireRegistrationStatus API call failed: ${resultInfo?.resultCode} - ${resultInfo?.resultMessage}`);
     }
 
     // Return Antom response along with refreshed merchant data

@@ -50,17 +50,22 @@ export const notifyService = {
    * Returns true if processed, false if duplicate (idempotent).
    */
   async processNotification(notification: AntomNotification): Promise<boolean> {
-    // Idempotency check
-    const existing = await prisma.notification.findUnique({
-      where: { notifyId: notification.notifyId },
-    });
-    if (existing) {
-      console.log(`[Notify] Duplicate notifyId: ${notification.notifyId}, skipping`);
-      return false;
-    }
-
+    // Generate notifyId if not provided by Antom
+    // Use registrationRequestId + notificationType as deterministic key for idempotency
     const notificationType = getNotificationType(notification);
     const registrationRequestId = getRegistrationRequestId(notification);
+    const effectiveNotifyId =
+      notification.notifyId ||
+      `auto_${notificationType}_${registrationRequestId || Date.now()}`;
+
+    // Idempotency check
+    const existing = await prisma.notification.findUnique({
+      where: { notifyId: effectiveNotifyId },
+    });
+    if (existing) {
+      console.log(`[Notify] Duplicate notifyId: ${effectiveNotifyId}, skipping`);
+      return false;
+    }
 
     if (!registrationRequestId) {
       console.error('[Notify] No registrationRequestId found in notification');
@@ -101,7 +106,7 @@ export const notifyService = {
     await prisma.notification.create({
       data: {
         merchantId: merchant.id,
-        notifyId: notification.notifyId,
+        notifyId: effectiveNotifyId,
         notificationType: notificationType,
         payload: JSON.stringify(notification),
       },

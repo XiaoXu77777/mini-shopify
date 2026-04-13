@@ -142,7 +142,10 @@ export interface AntomRegisterRequest {
 export interface AntomInquireRequest {
   registrationRequestId?: string;
   offboardingRequestId?: string;
-  referenceMerchantId: string;
+  merchant: {
+    referenceMerchantId: string;
+    integrationPartnerId?: string;
+  };
 }
 
 export interface AntomRegistrationResult {
@@ -176,7 +179,7 @@ export interface AntomOffboardRequest {
 
 // Antom guide format (section 4.3): notifications use notificationType + nested result
 export interface AntomNotification {
-  notifyId: string;
+  notifyId?: string;
   notificationType: string;      // guide uses notificationType
   notifyType?: string;           // legacy alias (kept for mock compat)
   registrationRequestId?: string; // convenience flat field

@@ -445,8 +445,13 @@ export const antomService = {
     offboardingRequestId?: string;
     referenceMerchantId: string;
   }): Promise<AntomResponse> {
+    const { parentMerchantId } = config.antom;
+
     const requestBody: AntomInquireRequest = {
-      referenceMerchantId: data.referenceMerchantId,
+      merchant: {
+        referenceMerchantId: data.referenceMerchantId,
+        integrationPartnerId: parentMerchantId || undefined,
+      },
     };
 
     if (data.registrationRequestId) {
