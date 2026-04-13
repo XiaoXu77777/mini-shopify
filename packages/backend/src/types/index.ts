@@ -208,6 +208,20 @@ export interface AntomNotification {
     [key: string]: unknown;
   };
 
+  // Payment method status change event (actual Antom callback format)
+  paymentMethodStatusChangeEvent?: {
+    currentStatus?: string;
+    previousStatus?: string;
+    eventId?: string;
+    eventType?: string;
+    failReason?: string;
+    merchantAccountId?: string;
+    merchantId?: string;
+    paymentMethodType?: string;
+    productCode?: string;
+    [key: string]: unknown;
+  };
+
   // Internal extensions for payment method and risk notifications (mock/demo)
   paymentMethodType?: string;
   paymentMethodStatus?: string;

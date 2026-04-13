@@ -21,6 +21,7 @@ function getReferenceMerchantId(notification: AntomNotification): string | undef
     (notification as Record<string, unknown>).referenceMerchantId as string ||
     notification.merchantRegistrationResult?.referenceMerchantId ||
     notification.merchantOffboardingResult?.referenceMerchantId ||
+    notification.paymentMethodStatusChangeEvent?.merchantId ||
     undefined
   );
 }
@@ -32,6 +33,7 @@ function getRegistrationRequestId(notification: AntomNotification): string | und
   return (
     notification.registrationRequestId ||
     notification.merchantRegistrationResult?.registrationRequestId ||
+    notification.paymentMethodStatusChangeEvent?.eventId ||
     undefined
   );
 }
@@ -229,22 +231,51 @@ async function handleRegistrationStatus(
   }
 }
 
+/**
+ * Map Antom payment method currentStatus to internal PaymentMethod status.
+ * Antom uses: SUCCESS / FAIL / PROCESSING
+ * Internal uses: ACTIVE / INACTIVE / PENDING
+ */
+function mapPaymentMethodStatus(antomStatus: string): string {
+  switch (antomStatus) {
+    case 'SUCCESS':
+      return 'ACTIVE';
+    case 'FAIL':
+      return 'INACTIVE';
+    case 'PROCESSING':
+      return 'PENDING';
+    default:
+      return antomStatus;
+  }
+}
+
 async function handlePaymentMethodActivation(
   merchantId: string,
   notification: AntomNotification
 ) {
-  // Extract payment method info from nested paymentMethodDetail (Antom format) or flat fields (legacy/mock)
+  // Extract payment method info from:
+  // 1. paymentMethodStatusChangeEvent (actual Antom callback format)
+  // 2. paymentMethodDetail (alternative Antom format)
+  // 3. flat fields (legacy/mock)
+  const pmEvent = notification.paymentMethodStatusChangeEvent;
   const pmType =
+    pmEvent?.paymentMethodType ||
     notification.paymentMethodDetail?.paymentMethodType ||
     notification.paymentMethodType;
-  const pmStatus =
+
+  // For status, paymentMethodStatusChangeEvent uses `currentStatus` which needs mapping
+  const rawStatus =
+    pmEvent?.currentStatus ||
     notification.paymentMethodDetail?.paymentMethodStatus ||
     notification.paymentMethodStatus;
 
-  if (!pmType || !pmStatus) {
+  if (!pmType || !rawStatus) {
     console.warn(`[Notify] PAYMENT_METHOD_ACTIVATION_STATUS missing paymentMethodType or status for merchant ${merchantId}`);
     return;
   }
+
+  // Map Antom status (SUCCESS/FAIL/PROCESSING) to internal status (ACTIVE/INACTIVE/PENDING)
+  const pmStatus = mapPaymentMethodStatus(rawStatus);
 
   const pm = await prisma.paymentMethod.findFirst({
     where: { merchantId, paymentMethodType: pmType },
@@ -272,7 +303,11 @@ async function handlePaymentMethodActivation(
     console.log(`[Notify] Merchant ${merchantId} status updated to ${merchantStatus} after payment method ${pmType} changed to ${pmStatus}`);
   }
 
-  console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${pmStatus}`);
+  if (pmEvent?.failReason) {
+    console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${rawStatus} -> ${pmStatus} (reason: ${pmEvent.failReason})`);
+  } else {
+    console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${rawStatus} -> ${pmStatus}`);
+  }
 }
 
 async function handleRiskNotification(
