@@ -36,6 +36,9 @@ export default function OverviewTab({ merchant, notifications }: Props) {
           <Descriptions.Item label="Shop Name">{merchant.shopName}</Descriptions.Item>
           <Descriptions.Item label="Email">{merchant.email}</Descriptions.Item>
           <Descriptions.Item label="Region">{merchant.region}</Descriptions.Item>
+          <Descriptions.Item label="Reference Merchant ID">
+            {merchant.referenceMerchantId || <Text type="secondary">Not assigned</Text>}
+          </Descriptions.Item>
           <Descriptions.Item label="Registration Request ID">
             {merchant.registrationRequestId || <Text type="secondary">Not registered</Text>}
           </Descriptions.Item>
