@@ -142,10 +142,7 @@ export interface AntomRegisterRequest {
 export interface AntomInquireRequest {
   registrationRequestId?: string;
   offboardingRequestId?: string;
-  merchant: {
-    integrationPartnerId: string;
-    referenceMerchantId: string;
-  };
+  referenceMerchantId: string;
 }
 
 export interface AntomRegistrationResult {

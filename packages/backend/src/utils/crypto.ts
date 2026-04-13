@@ -45,8 +45,12 @@ export function signRequest(
 /**
  * Verify a signature from Antom response or notification.
  *
- * content_to_be_validated = "POST <httpUri>\n<clientId>.<time>.<body>"
- * verify = sha256withRSA_verify(base64Decode(urlDecode(targetSignature)), content, publicKey)
+ * Per Antom docs (Handle a response / Handle a notification):
+ *   content_to_be_validated = "<httpMethod> <httpUri>\n<clientId>.<responseTime>.<responseBody>"
+ *   verify = sha256withRSA_verify(base64Decode(urlDecode(targetSignature)), content, publicKey)
+ *
+ * Note: The targetSignature from Antom may or may not be URL-encoded.
+ * We attempt URL-decode first, but if it looks like plain Base64, we use it directly.
  */
 export function verifySignature(
   httpUri: string,
@@ -65,19 +69,27 @@ export function verifySignature(
   console.log(`[verifySignature] DEBUG - contentToVerify (first 300 chars): ${contentToVerify.substring(0, 300)}`);
   console.log(`[verifySignature] DEBUG - targetSignature (first 80 chars): ${targetSignature.substring(0, 80)}...`);
 
-  const verifier = crypto.createVerify('SHA256');
-  verifier.update(contentToVerify, 'utf8');
-
   const publicKeyPem = formatPublicKey(publicKeyBase64);
   console.log(`[verifySignature] DEBUG - publicKeyPem header: ${publicKeyPem.split('\n')[0]}`);
 
-  const urlDecoded = decodeURIComponent(targetSignature);
-  console.log(`[verifySignature] DEBUG - urlDecoded signature (first 80 chars): ${urlDecoded.substring(0, 80)}...`);
-  console.log(`[verifySignature] DEBUG - urlDecoded === targetSignature: ${urlDecoded === targetSignature}`);
-  const decodedSig = Buffer.from(urlDecoded, 'base64');
+  // Per Antom docs: urlDecode then base64Decode the signature
+  // However, Antom notifications may send plain base64 (not URL-encoded).
+  // We try URL-decode first; if the signature contains '%', it's URL-encoded.
+  let base64Sig: string;
+  if (targetSignature.includes('%')) {
+    base64Sig = decodeURIComponent(targetSignature);
+    console.log(`[verifySignature] DEBUG - signature was URL-encoded, decoded`);
+  } else {
+    base64Sig = targetSignature;
+    console.log(`[verifySignature] DEBUG - signature is plain base64 (no URL-encoding detected)`);
+  }
+
+  const decodedSig = Buffer.from(base64Sig, 'base64');
   console.log(`[verifySignature] DEBUG - decoded signature buffer length: ${decodedSig.length}`);
 
   try {
+    const verifier = crypto.createVerify('SHA256');
+    verifier.update(contentToVerify, 'utf8');
     const result = verifier.verify(publicKeyPem, decodedSig);
     console.log(`[verifySignature] DEBUG - verify result: ${result}`);
     return result;
@@ -90,33 +102,41 @@ export function verifySignature(
 /**
  * Parse the Signature header value.
  * Format: "algorithm=RSA256, keyVersion=1, signature=<value>"
+ *
+ * Note: The signature value itself may contain '=' (Base64 padding) and potentially
+ * other special characters, so we must be careful not to split on those.
+ * We find the "signature=" key and take everything after it as the signature value.
  */
 export function parseSignatureHeader(header: string): {
   algorithm: string;
   keyVersion: string;
   signature: string;
 } | null {
-  const parts: Record<string, string> = {};
   // Remove the "Signature: " prefix if present
-  const cleaned = header.replace(/^Signature:\s*/i, '');
-  const segments = cleaned.split(',').map((s) => s.trim());
-  for (const seg of segments) {
-    const eqIdx = seg.indexOf('=');
-    if (eqIdx > 0) {
-      const key = seg.substring(0, eqIdx).trim();
-      const val = seg.substring(eqIdx + 1).trim();
-      parts[key] = val;
-    }
+  const cleaned = header.replace(/^Signature:\s*/i, '').trim();
+
+  // Extract algorithm
+  const algorithmMatch = cleaned.match(/algorithm=([^,]+)/);
+  // Extract keyVersion
+  const keyVersionMatch = cleaned.match(/keyVersion=([^,]+)/);
+  // Extract signature - everything after "signature=" to the end
+  // This avoids issues with '=' or ',' inside the signature value
+  const signatureIdx = cleaned.indexOf('signature=');
+
+  if (!algorithmMatch || !keyVersionMatch || signatureIdx === -1) {
+    return null;
   }
 
-  if (!parts.algorithm || !parts.keyVersion || !parts.signature) {
+  const signatureValue = cleaned.substring(signatureIdx + 'signature='.length).trim();
+
+  if (!signatureValue) {
     return null;
   }
 
   return {
-    algorithm: parts.algorithm,
-    keyVersion: parts.keyVersion,
-    signature: parts.signature,
+    algorithm: algorithmMatch[1].trim(),
+    keyVersion: keyVersionMatch[1].trim(),
+    signature: signatureValue,
   };
 }
 

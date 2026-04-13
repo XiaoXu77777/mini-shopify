@@ -41,7 +41,11 @@ export function signatureVerify(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const httpUri = req.originalUrl;
+    // httpUri: Use the request path without query string.
+    // Per Antom docs, this should match the path Antom uses when signing the notification.
+    // req.originalUrl includes the full mounted path (e.g. /api/notify/register) which is
+    // what Antom signs against (the path portion of the notifyUrl you registered).
+    const httpUri = req.originalUrl.split('?')[0];
     console.log(`[SignatureVerify] Verifying signature - httpUri: ${httpUri}, clientId: ${clientId}, requestTime: ${requestTime}, bodyLength: ${rawBody.length}`);
     console.log(`[SignatureVerify] DEBUG - rawBody (first 500 chars): ${rawBody.substring(0, 500)}`);
     console.log(`[SignatureVerify] DEBUG - parsed signature header: algorithm=${parsed.algorithm}, keyVersion=${parsed.keyVersion}, signature(first 50)=${parsed.signature.substring(0, 50)}...`);
