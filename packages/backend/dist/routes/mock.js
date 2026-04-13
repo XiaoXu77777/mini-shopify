@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const mockService_1 = require("../services/mockService");
+const notifyService_1 = require("../services/notifyService");
 const router = (0, express_1.Router)();
 // POST /api/mock/notify - Manually trigger a mock notification
 router.post('/notify', async (req, res) => {
@@ -26,6 +27,30 @@ router.post('/notify', async (req, res) => {
     catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('[Mock] Trigger error:', message);
+        res.status(500).json({ error: message });
+    }
+});
+// POST /api/mock/notify/raw - Send a raw notification payload directly (no signature required)
+// Useful for testing with exact Antom callback format
+router.post('/notify/raw', async (req, res) => {
+    try {
+        const notification = req.body;
+        const notificationType = notification.notificationType || notification.notifyType;
+        if (!notificationType) {
+            res.status(400).json({ error: 'Missing notificationType in payload' });
+            return;
+        }
+        console.log('[Mock/Raw] Processing raw notification:', JSON.stringify(notification, null, 2));
+        const processed = await notifyService_1.notifyService.processNotification(notification);
+        res.json({
+            success: true,
+            processed,
+            result: { resultCode: 'SUCCESS', resultStatus: 'S', resultMessage: 'success' },
+        });
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[Mock/Raw] Error:', message);
         res.status(500).json({ error: message });
     }
 });

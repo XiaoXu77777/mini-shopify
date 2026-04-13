@@ -137,15 +137,24 @@ export const notifyService = {
         break;
     }
 
-    // Save notification record
-    await prisma.notification.create({
-      data: {
-        merchantId: merchant.id,
-        notifyId: effectiveNotifyId,
-        notificationType: notificationType,
-        payload: JSON.stringify(notification),
-      },
-    });
+    // Save notification record (handle race condition with unique constraint)
+    try {
+      await prisma.notification.create({
+        data: {
+          merchantId: merchant.id,
+          notifyId: effectiveNotifyId,
+          notificationType: notificationType,
+          payload: JSON.stringify(notification),
+        },
+      });
+    } catch (err: unknown) {
+      // P2002 = unique constraint violation → duplicate notification (race condition)
+      if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'P2002') {
+        console.log(`[Notify] Duplicate notifyId (race): ${effectiveNotifyId}, skipping`);
+        return false;
+      }
+      throw err;
+    }
 
     // Push to frontend via WebSocket
     broadcastToMerchant(merchant.id, {
