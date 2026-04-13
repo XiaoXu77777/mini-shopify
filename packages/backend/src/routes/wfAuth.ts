@@ -344,7 +344,7 @@ router.post('/exchange-token', async (req: Request, res: Response) => {
     // POST /amsin/api/v1/oauth/applyToken
     // Reference: https://docs.antom.com/ac/isv/apply_token_wf
     try {
-      const baseUrl = 'https://open-sea.worldfirst.com';
+      const baseUrl = 'https://open-sea-global.alipay.com';
       const tokenUrl = `${baseUrl}/amsin/api/v1/oauth/applyToken`;
       
       // Build request body with proper signature

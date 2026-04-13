@@ -799,13 +799,7 @@ function verifySignature(httpUri, clientId, requestTime, rawBody, signature, pub
 ### 5.2 API 地址
 
 **生产环境**:
-- Antom: `https://open-sea-global.alipay.com`
-- WorldFirst: `https://open-sea.worldfirst.com`
-
-**沙箱环境**:
-- Antom: `https://open-sea-global.alipay.com`（路径添加 `/sandbox/`）
-- WorldFirst: `https://open-sea.worldfirst.com`
-
+`https://open-sea-global.alipay.com`
 ---
 
 ## 六、错误处理

@@ -683,7 +683,7 @@ export const antomService = {
 
     try {
       // queryKybInfo uses WF credentials, not Antom credentials
-      const baseUrl = 'https://open-sea.worldfirst.com';
+      const baseUrl = 'https://open-sea-global.alipay.com';
       const apiPath = QUERY_KYB_PATH;
       const url = `${baseUrl}${apiPath}`;
 
