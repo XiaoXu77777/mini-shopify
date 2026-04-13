@@ -12,12 +12,31 @@ function getNotificationType(notification) {
     return notification.notificationType || notification.notifyType || '';
 }
 /**
+ * Extract referenceMerchantId from notification.
+ * Different notification types have it in different nested locations.
+ */
+function getReferenceMerchantId(notification) {
+    return (notification.referenceMerchantId ||
+        notification.merchantRegistrationResult?.referenceMerchantId ||
+        notification.merchantOffboardingResult?.referenceMerchantId ||
+        notification.paymentMethodStatusChangeEvent?.merchantId ||
+        undefined);
+}
+/**
  * Extract registrationRequestId from either flat field or nested merchantRegistrationResult.
  */
 function getRegistrationRequestId(notification) {
     return (notification.registrationRequestId ||
         notification.merchantRegistrationResult?.registrationRequestId ||
-        notification.merchantOffboardingResult?.offboardingRequestId);
+        notification.paymentMethodStatusChangeEvent?.eventId ||
+        undefined);
+}
+/**
+ * Extract offboardingRequestId from notification.
+ */
+function getOffboardingRequestId(notification) {
+    return (notification.merchantOffboardingResult?.offboardingRequestId ||
+        undefined);
 }
 /**
  * Map Antom guide registration status to internal KYC status.
@@ -45,32 +64,38 @@ exports.notifyService = {
      * Returns true if processed, false if duplicate (idempotent).
      */
     async processNotification(notification) {
+        const notificationType = getNotificationType(notification);
+        const referenceMerchantId = getReferenceMerchantId(notification);
+        const registrationRequestId = getRegistrationRequestId(notification);
+        const offboardingRequestId = getOffboardingRequestId(notification);
+        // Generate notifyId if not provided by Antom
+        // Use referenceMerchantId + notificationType as deterministic key for idempotency
+        const idempotencyKey = referenceMerchantId || registrationRequestId || offboardingRequestId || String(Date.now());
+        const effectiveNotifyId = notification.notifyId ||
+            `auto_${notificationType}_${idempotencyKey}`;
         // Idempotency check
         const existing = await prisma.notification.findUnique({
-            where: { notifyId: notification.notifyId },
+            where: { notifyId: effectiveNotifyId },
         });
         if (existing) {
-            console.log(`[Notify] Duplicate notifyId: ${notification.notifyId}, skipping`);
+            console.log(`[Notify] Duplicate notifyId: ${effectiveNotifyId}, skipping`);
             return false;
         }
-        const notificationType = getNotificationType(notification);
-        const registrationRequestId = getRegistrationRequestId(notification);
-        if (!registrationRequestId) {
-            console.error('[Notify] No registrationRequestId found in notification');
-            return false;
+        // Find merchant using multiple strategies depending on notification type
+        // Strategy 1: by referenceMerchantId (most reliable, present in all notification types)
+        let merchant = referenceMerchantId
+            ? await prisma.merchant.findFirst({ where: { referenceMerchantId } })
+            : null;
+        // Strategy 2: by registrationRequestId (REGISTRATION_STATUS / PAYMENT_METHOD_ACTIVATION_STATUS)
+        if (!merchant && registrationRequestId) {
+            merchant = await prisma.merchant.findFirst({ where: { registrationRequestId } });
         }
-        // Find merchant by registrationRequestId (or offboardingRequestId)
-        let merchant = await prisma.merchant.findFirst({
-            where: { registrationRequestId },
-        });
-        // Also try offboardingRequestId for offboard notifications
-        if (!merchant && notification.merchantOffboardingResult) {
-            merchant = await prisma.merchant.findFirst({
-                where: { offboardingRequestId: notification.merchantOffboardingResult.offboardingRequestId },
-            });
+        // Strategy 3: by offboardingRequestId (offboard notifications)
+        if (!merchant && offboardingRequestId) {
+            merchant = await prisma.merchant.findFirst({ where: { offboardingRequestId } });
         }
         if (!merchant) {
-            console.error(`[Notify] Merchant not found for requestId: ${registrationRequestId}`);
+            console.error(`[Notify] Merchant not found. referenceMerchantId=${referenceMerchantId}, registrationRequestId=${registrationRequestId}, offboardingRequestId=${offboardingRequestId}`);
             return false;
         }
         // Dispatch by notification type
@@ -89,7 +114,7 @@ exports.notifyService = {
         await prisma.notification.create({
             data: {
                 merchantId: merchant.id,
-                notifyId: notification.notifyId,
+                notifyId: effectiveNotifyId,
                 notificationType: notificationType,
                 payload: JSON.stringify(notification),
             },
@@ -171,11 +196,42 @@ async function handleRegistrationStatus(merchantId, notification) {
         console.log(`[Notify] Registration status for merchant ${merchantId}: ${antomStatus} -> kycStatus=${kycStatus}`);
     }
 }
+/**
+ * Map Antom payment method currentStatus to internal PaymentMethod status.
+ * Antom uses: SUCCESS / FAIL / PROCESSING
+ * Internal uses: ACTIVE / INACTIVE / PENDING
+ */
+function mapPaymentMethodStatus(antomStatus) {
+    switch (antomStatus) {
+        case 'SUCCESS':
+            return 'ACTIVE';
+        case 'FAIL':
+            return 'INACTIVE';
+        case 'PROCESSING':
+            return 'PENDING';
+        default:
+            return antomStatus;
+    }
+}
 async function handlePaymentMethodActivation(merchantId, notification) {
-    const pmType = notification.paymentMethodType;
-    const pmStatus = notification.paymentMethodStatus;
-    if (!pmType || !pmStatus)
+    // Extract payment method info from:
+    // 1. paymentMethodStatusChangeEvent (actual Antom callback format)
+    // 2. paymentMethodDetail (alternative Antom format)
+    // 3. flat fields (legacy/mock)
+    const pmEvent = notification.paymentMethodStatusChangeEvent;
+    const pmType = pmEvent?.paymentMethodType ||
+        notification.paymentMethodDetail?.paymentMethodType ||
+        notification.paymentMethodType;
+    // For status, paymentMethodStatusChangeEvent uses `currentStatus` which needs mapping
+    const rawStatus = pmEvent?.currentStatus ||
+        notification.paymentMethodDetail?.paymentMethodStatus ||
+        notification.paymentMethodStatus;
+    if (!pmType || !rawStatus) {
+        console.warn(`[Notify] PAYMENT_METHOD_ACTIVATION_STATUS missing paymentMethodType or status for merchant ${merchantId}`);
         return;
+    }
+    // Map Antom status (SUCCESS/FAIL/PROCESSING) to internal status (ACTIVE/INACTIVE/PENDING)
+    const pmStatus = mapPaymentMethodStatus(rawStatus);
     const pm = await prisma.paymentMethod.findFirst({
         where: { merchantId, paymentMethodType: pmType },
     });
@@ -199,7 +255,12 @@ async function handlePaymentMethodActivation(merchantId, notification) {
         });
         console.log(`[Notify] Merchant ${merchantId} status updated to ${merchantStatus} after payment method ${pmType} changed to ${pmStatus}`);
     }
-    console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${pmStatus}`);
+    if (pmEvent?.failReason) {
+        console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${rawStatus} -> ${pmStatus} (reason: ${pmEvent.failReason})`);
+    }
+    else {
+        console.log(`[Notify] Payment method ${pmType} for merchant ${merchantId}: ${rawStatus} -> ${pmStatus}`);
+    }
 }
 async function handleRiskNotification(merchantId, notification) {
     await prisma.merchant.update({

@@ -29,7 +29,7 @@ app.use((req, _res, next) => {
 });
 // Routes
 app.use('/api/merchants', merchant_1.default);
-app.use('/register', notify_1.default);
+app.use('/api/notify', notify_1.default);
 app.use('/api/mock', mock_1.default);
 app.use('/api/wf', wfAuth_1.default);
 // GET /api/config - system configuration for frontend
@@ -86,6 +86,6 @@ httpServer.listen(config_1.config.port, () => {
     console.log(`[Server] HTTP server running on http://localhost:${config_1.config.port}`);
     console.log(`[Server] Mode: ${config_1.config.mockMode ? 'MOCK' : 'PRODUCTION'}`);
     console.log(`[Server] WebSocket: ws://localhost:${config_1.config.port}/ws`);
-    console.log(`[Server] Antom callback: https://minishopify.xyz/register/notification (via Nginx reverse proxy)`);
+    console.log(`[Server] Antom callback: https://minishopify.xyz/api/notify/register (via Nginx reverse proxy)`);
 });
 //# sourceMappingURL=app.js.map

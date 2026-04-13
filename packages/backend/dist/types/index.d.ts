@@ -124,8 +124,8 @@ export interface AntomInquireRequest {
     registrationRequestId?: string;
     offboardingRequestId?: string;
     merchant: {
-        integrationPartnerId: string;
         referenceMerchantId: string;
+        integrationPartnerId?: string;
     };
 }
 export interface AntomRegistrationResult {
@@ -151,7 +151,7 @@ export interface AntomOffboardRequest {
     };
 }
 export interface AntomNotification {
-    notifyId: string;
+    notifyId?: string;
     notificationType: string;
     notifyType?: string;
     registrationRequestId?: string;
@@ -168,6 +168,23 @@ export interface AntomNotification {
         offboardingRequestId: string;
         parentMerchantId?: string;
         referenceMerchantId?: string;
+    };
+    paymentMethodDetail?: {
+        paymentMethodType?: string;
+        paymentMethodStatus?: string;
+        [key: string]: unknown;
+    };
+    paymentMethodStatusChangeEvent?: {
+        currentStatus?: string;
+        previousStatus?: string;
+        eventId?: string;
+        eventType?: string;
+        failReason?: string;
+        merchantAccountId?: string;
+        merchantId?: string;
+        paymentMethodType?: string;
+        productCode?: string;
+        [key: string]: unknown;
     };
     paymentMethodType?: string;
     paymentMethodStatus?: string;

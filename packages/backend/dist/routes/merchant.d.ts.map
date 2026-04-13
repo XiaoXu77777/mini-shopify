@@ -1,5 +1,1 @@
-<<<<<<< Updated upstream
-{"version":3,"file":"merchant.d.ts","sourceRoot":"","sources":["../../src/routes/merchant.ts"],"names":[],"mappings":"AAMA,QAAA,MAAM,MAAM,4CAAW,CAAC;AA2fxB,eAAe,MAAM,CAAC"}
-=======
-{"version":3,"file":"merchant.d.ts","sourceRoot":"","sources":["../../src/routes/merchant.ts"],"names":[],"mappings":"AAMA,QAAA,MAAM,MAAM,4CAAW,CAAC;AAqfxB,eAAe,MAAM,CAAC"}
->>>>>>> Stashed changes
+{"version":3,"file":"merchant.d.ts","sourceRoot":"","sources":["../../src/routes/merchant.ts"],"names":[],"mappings":"AAMA,QAAA,MAAM,MAAM,4CAAW,CAAC;AAmgBxB,eAAe,MAAM,CAAC"}

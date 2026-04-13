@@ -8,3 +8,13 @@
 2026-04-10 17:54:21 +08:00: [Server] Mode: PRODUCTION
 2026-04-10 17:54:21 +08:00: [Server] WebSocket: ws://localhost:3001/ws
 2026-04-10 17:54:21 +08:00: [Server] Antom callback: https://minishopify.xyz/register/notification (via Nginx reverse proxy)
+2026-04-13 16:29:10 +08:00: [WS] WebSocket server initialized on /ws
+2026-04-13 16:29:10 +08:00: [Server] HTTP server running on http://localhost:3001
+2026-04-13 16:29:10 +08:00: [Server] Mode: PRODUCTION
+2026-04-13 16:29:10 +08:00: [Server] WebSocket: ws://localhost:3001/ws
+2026-04-13 16:29:10 +08:00: [Server] Antom callback: https://minishopify.xyz/api/notify/register (via Nginx reverse proxy)
+2026-04-13 16:31:11 +08:00: [WS] WebSocket server initialized on /ws
+2026-04-13 16:31:11 +08:00: [Server] HTTP server running on http://localhost:3001
+2026-04-13 16:31:11 +08:00: [Server] Mode: PRODUCTION
+2026-04-13 16:31:11 +08:00: [Server] WebSocket: ws://localhost:3001/ws
+2026-04-13 16:31:11 +08:00: [Server] Antom callback: https://minishopify.xyz/api/notify/register (via Nginx reverse proxy)

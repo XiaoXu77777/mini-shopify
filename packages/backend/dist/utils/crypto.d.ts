@@ -21,13 +21,21 @@ export declare function signRequest(httpUri: string, clientId: string, requestTi
 /**
  * Verify a signature from Antom response or notification.
  *
- * content_to_be_validated = "POST <httpUri>\n<clientId>.<time>.<body>"
- * verify = sha256withRSA_verify(base64Decode(urlDecode(targetSignature)), content, publicKey)
+ * Per Antom docs (Handle a response / Handle a notification):
+ *   content_to_be_validated = "<httpMethod> <httpUri>\n<clientId>.<responseTime>.<responseBody>"
+ *   verify = sha256withRSA_verify(base64Decode(urlDecode(targetSignature)), content, publicKey)
+ *
+ * Note: The targetSignature from Antom may or may not be URL-encoded.
+ * We attempt URL-decode first, but if it looks like plain Base64, we use it directly.
  */
 export declare function verifySignature(httpUri: string, clientId: string, time: string, body: string, targetSignature: string, publicKeyBase64: string): boolean;
 /**
  * Parse the Signature header value.
  * Format: "algorithm=RSA256, keyVersion=1, signature=<value>"
+ *
+ * Note: The signature value itself may contain '=' (Base64 padding) and potentially
+ * other special characters, so we must be careful not to split on those.
+ * We find the "signature=" key and take everything after it as the signature value.
  */
 export declare function parseSignatureHeader(header: string): {
     algorithm: string;

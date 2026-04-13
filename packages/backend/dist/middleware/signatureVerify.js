@@ -36,11 +36,19 @@ function signatureVerify(req, res, next) {
             res.status(401).json({ error: 'Missing raw body for signature verification' });
             return;
         }
-        const httpUri = req.originalUrl;
+        // httpUri: Use the request path without query string.
+        // Per Antom docs, this should match the path Antom uses when signing the notification.
+        // req.originalUrl includes the full mounted path (e.g. /api/notify/register) which is
+        // what Antom signs against (the path portion of the notifyUrl you registered).
+        const httpUri = req.originalUrl.split('?')[0];
         console.log(`[SignatureVerify] Verifying signature - httpUri: ${httpUri}, clientId: ${clientId}, requestTime: ${requestTime}, bodyLength: ${rawBody.length}`);
+        console.log(`[SignatureVerify] DEBUG - rawBody (first 500 chars): ${rawBody.substring(0, 500)}`);
+        console.log(`[SignatureVerify] DEBUG - parsed signature header: algorithm=${parsed.algorithm}, keyVersion=${parsed.keyVersion}, signature(first 50)=${parsed.signature.substring(0, 50)}...`);
+        console.log(`[SignatureVerify] DEBUG - publicKey configured: ${config_1.config.antom.publicKey ? `YES (length=${config_1.config.antom.publicKey.length}, first 30=${config_1.config.antom.publicKey.substring(0, 30)}...)` : 'NO (empty)'}`);
         const isValid = (0, crypto_1.verifySignature)(httpUri, clientId, requestTime, rawBody, parsed.signature, config_1.config.antom.publicKey);
         if (!isValid) {
             console.warn(`[SignatureVerify] Signature verification FAILED for ${httpUri}`);
+            console.warn(`[SignatureVerify] DEBUG - contentToVerify would be: "POST ${httpUri}\\n${clientId}.${requestTime}.${rawBody.substring(0, 200)}..."`);
             res.status(401).json({ error: 'Invalid signature' });
             return;
         }

@@ -353,13 +353,10 @@ exports.antomService = {
      */
     async inquireRegistrationStatus(data) {
         const { parentMerchantId } = config_1.config.antom;
-        if (!parentMerchantId) {
-            throw new Error('PARENT_MERCHANT_ID is not configured');
-        }
         const requestBody = {
             merchant: {
-                integrationPartnerId: parentMerchantId,
                 referenceMerchantId: data.referenceMerchantId,
+                integrationPartnerId: parentMerchantId || undefined,
             },
         };
         if (data.registrationRequestId) {
@@ -569,7 +566,7 @@ exports.antomService = {
         }
         try {
             // queryKybInfo uses WF credentials, not Antom credentials
-            const baseUrl = 'https://open-sea.worldfirst.com';
+            const baseUrl = 'https://open-sea-global.alipay.com';
             const apiPath = QUERY_KYB_PATH;
             const url = `${baseUrl}${apiPath}`;
             const requestBody = { accessToken };
