@@ -201,6 +201,13 @@ export interface AntomNotification {
     referenceMerchantId?: string;
   };
 
+  // Payment method activation notification (nested structure from Antom)
+  paymentMethodDetail?: {
+    paymentMethodType?: string;
+    paymentMethodStatus?: string;
+    [key: string]: unknown;
+  };
+
   // Internal extensions for payment method and risk notifications (mock/demo)
   paymentMethodType?: string;
   paymentMethodStatus?: string;
