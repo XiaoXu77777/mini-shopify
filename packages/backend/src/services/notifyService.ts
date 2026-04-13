@@ -82,10 +82,15 @@ export const notifyService = {
 
     // Generate notifyId if not provided by Antom
     // Use referenceMerchantId + notificationType as deterministic key for idempotency
+    // For PAYMENT_METHOD_ACTIVATION_STATUS, each eventId has multiple notifications (one per payment method),
+    // so we must include paymentMethodType in the key to avoid treating them as duplicates.
     const idempotencyKey = referenceMerchantId || registrationRequestId || offboardingRequestId || String(Date.now());
+    const pmTypeSuffix = notificationType === 'PAYMENT_METHOD_ACTIVATION_STATUS'
+      ? `_${notification.paymentMethodStatusChangeEvent?.paymentMethodType || notification.paymentMethodDetail?.paymentMethodType || notification.paymentMethodType || 'unknown'}`
+      : '';
     const effectiveNotifyId =
       notification.notifyId ||
-      `auto_${notificationType}_${idempotencyKey}`;
+      `auto_${notificationType}_${idempotencyKey}${pmTypeSuffix}`;
 
     // Idempotency check
     const existing = await prisma.notification.findUnique({

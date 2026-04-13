@@ -24,7 +24,7 @@ router.post('/register', signatureVerify_1.signatureVerify, async (req, res) => 
         console.log(`[Notify] processNotification result: processed=${processed}, notificationType=${notificationType}`);
         // Return fixed response per guide section 4.3
         const successResponse = {
-            result: { resultCode: 'SUCCESS', resultValue: 'S', message: 'success' },
+            result: { resultCode: 'SUCCESS', resultStatus: 'S', resultMessage: 'success' },
         };
         console.log('[Notify] Antom callback >>> response:', JSON.stringify(successResponse, null, 2));
         res.json(successResponse);
@@ -32,7 +32,7 @@ router.post('/register', signatureVerify_1.signatureVerify, async (req, res) => 
     catch (err) {
         console.error('[Notify] Error processing notification:', err);
         res.status(500).json({
-            result: { resultCode: 'ERROR', resultValue: 'F', message: 'Internal error' },
+            result: { resultCode: 'ERROR', resultStatus: 'F', resultMessage: 'Internal error' },
         });
     }
 });
