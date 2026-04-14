@@ -222,7 +222,7 @@ export default function AppLayout() {
           </Form.Item>
           <Form.Item name="region" label="Region">
             <Select>
-              <Select.Option value="CN">China (CN)</Select.Option>
+              <Select.Option value="CN">Greater China (CN+HK)</Select.Option>
               <Select.Option value="US">United States (US)</Select.Option>
               <Select.Option value="SG">Singapore (SG)</Select.Option>
               <Select.Option value="HK">Hong Kong (HK)</Select.Option>
