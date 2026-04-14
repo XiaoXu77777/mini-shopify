@@ -10,7 +10,7 @@ interface Props {
   onChange: (partial: Partial<WizardData>) => void;
 }
 
-const WF_SIGNUP_URL = 'https://www.worldfirst.com/uk/?utm_medium=cpc&utm_source=google&utm_campaign=CPC_google_monks_us_brand_worldfirst&utm_term=CPC_US_Brand_worldfirst&utm_content=[WorldFirst]&utm_date=295279591102&gad_so';
+const WF_SIGNUP_URL = 'https://portal.worldfirst.com.cn/register/submit?goto=https%3A%2F%2Fportal.worldfirst.com.cn%2F&productType=E_COMMERCE&progress=rollout&region=CN&type=E_COMMERCE&utm_date=register0114&affiliate_id=12413';
 
 export default function WfConnectStep({ data }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
