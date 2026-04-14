@@ -290,9 +290,9 @@ router.post('/oauth-url', async (req: Request, res: Response) => {
       extendInfo: JSON.stringify(extendInfo),
       referenceCustomerId,
       requestId,
-      redirectURL: redirectUrl,
+      redirectUrl,
       state,
-      signature: 'wMSXz76VJCpn7zYlI8E%2B%2Bw%3D%3D', // In production, generate proper signature
+      signature: 'wMSXz76VJCpn7zYlI8E++w==', // In production, generate proper signature
     });
 
     const oauthUrl = `${baseUrl}?${params.toString()}`;
