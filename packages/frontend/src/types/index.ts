@@ -27,6 +27,7 @@ export interface Merchant {
   kycInfo?: KycInfo | null;
   paymentMethods: PaymentMethod[];
   entityAssociations?: EntityAssociation[];
+  files?: MerchantFile[];
 }
 
 export interface KycInfo {
@@ -93,6 +94,19 @@ export interface PaymentMethod {
   deactivatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MerchantFile {
+  id: string;
+  merchantId: string;
+  requestId: string;
+  originalFileName: string;
+  fileName: string;
+  fileKey: string;
+  fileSize: number;
+  fileSha256: string;
+  mimeType: string | null;
+  createdAt: string;
 }
 
 export interface Notification {

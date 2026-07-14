@@ -25,10 +25,11 @@ model Merchant {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  kycInfo              KycInfo?
-  paymentMethods       PaymentMethod[]
-  notifications        Notification[]
-  entityAssociations   EntityAssociation[]
+  kycInfo            KycInfo?
+  paymentMethods     PaymentMethod[]
+  notifications      Notification[]
+  entityAssociations EntityAssociation[]
+  files              MerchantFile[]
 
   @@index([email])
   @@index([status])
@@ -36,38 +37,38 @@ model Merchant {
 }
 
 model KycInfo {
-  id              String   @id @default(uuid())
-  merchantId      String   @unique
-  merchant        Merchant @relation(fields: [merchantId], references: [id])
-  legalName       String?
-  companyType     String?
-  certificateType String?
-  certificateNo   String?
-  branchName      String?
-  companyUnit     String?
-  addressRegion   String?
-  addressState    String?
-  addressCity     String?
-  address1        String?
-  address2        String?
-  zipCode         String?
-  mcc             String?
-  doingBusinessAs String?
-  websiteUrl      String?
-  englishName     String?
+  id                 String   @id @default(uuid())
+  merchantId         String   @unique
+  merchant           Merchant @relation(fields: [merchantId], references: [id])
+  legalName          String?
+  companyType        String?
+  certificateType    String?
+  certificateNo      String?
+  branchName         String?
+  companyUnit        String?
+  addressRegion      String?
+  addressState       String?
+  addressCity        String?
+  address1           String?
+  address2           String?
+  zipCode            String?
+  mcc                String?
+  doingBusinessAs    String?
+  websiteUrl         String?
+  englishName        String?
   serviceDescription String?
-  appName         String?
-  merchantBrandName String?
-  contactType     String?
-  contactInfo     String?
-  legalRepName    String?
-  legalRepIdType  String?
-  legalRepIdNo    String?
-  legalRepDob     String?
-  wfKycData       String?  @db.Text
-  rejectedFields  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  appName            String?
+  merchantBrandName  String?
+  contactType        String?
+  contactInfo        String?
+  legalRepName       String?
+  legalRepIdType     String?
+  legalRepIdNo       String?
+  legalRepDob        String?
+  wfKycData          String?  @db.Text
+  rejectedFields     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model EntityAssociation {
@@ -89,15 +90,15 @@ model EntityAssociation {
 }
 
 model PaymentMethod {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   merchantId        String
-  merchant          Merchant @relation(fields: [merchantId], references: [id])
+  merchant          Merchant  @relation(fields: [merchantId], references: [id])
   paymentMethodType String
-  status            String   @default("PENDING")
+  status            String    @default("PENDING")
   activatedAt       DateTime?
   deactivatedAt     DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([merchantId])
 }
@@ -112,4 +113,21 @@ model Notification {
   processedAt      DateTime @default(now())
 
   @@index([merchantId])
+}
+
+model MerchantFile {
+  id               String   @id @default(uuid())
+  merchantId       String
+  merchant         Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  requestId        String   @unique @db.VarChar(64)
+  originalFileName String   @db.VarChar(128)
+  fileName         String   @db.VarChar(128)
+  fileKey          String   @unique @db.VarChar(256)
+  fileSize         Int
+  fileSha256       String   @db.Char(64)
+  mimeType         String?  @db.VarChar(128)
+  createdAt        DateTime @default(now())
+
+  @@index([merchantId])
+  @@index([fileSha256])
 }

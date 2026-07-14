@@ -9,6 +9,7 @@ import notifyRouter from './routes/notify';
 import mockRouter from './routes/mock';
 import wfAuthRouter from './routes/wfAuth';
 import payoutRouter from './routes/payout';
+import merchantFileRouter from './routes/merchantFile';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use((req, _res, next) => {
 
 // Routes
 app.use('/api/merchants', merchantRouter);
+app.use('/api/merchants', merchantFileRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/mock', mockRouter);
 app.use('/api/wf', wfAuthRouter);

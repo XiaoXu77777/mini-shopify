@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Descriptions, Alert, Typography, Divider, Empty, Input, Button, message, Space } from 'antd';
 import { merchantApi } from '../../../services/merchantApi';
 import type { Merchant } from '../../../types';
+import MerchantFiles from './MerchantFiles';
 
 const { Text } = Typography;
 
 interface Props {
   merchant: Merchant;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
 }
 
 export default function KycTab({ merchant, onRefresh }: Props) {
@@ -26,10 +27,6 @@ export default function KycTab({ merchant, onRefresh }: Props) {
     return initial;
   });
   const [submitting, setSubmitting] = useState(false);
-
-  if (!kyc) {
-    return <Empty description="No KYC information submitted yet" />;
-  }
 
   const isRejected = (fieldName: string) => isSupplementRequired && rejectedFields.includes(fieldName);
 
@@ -62,6 +59,7 @@ export default function KycTab({ merchant, onRefresh }: Props) {
   };
 
   const handleResubmit = async () => {
+    if (!kyc) return;
     setSubmitting(true);
     try {
       // 1. Build the full KYC data with edited values merged in
@@ -117,8 +115,20 @@ export default function KycTab({ merchant, onRefresh }: Props) {
     }
   };
 
+  if (!kyc) {
+    return (
+      <div style={{ maxWidth: 900 }}>
+        <MerchantFiles merchantId={merchant.id} files={merchant.files || []} onRefresh={onRefresh} />
+        <Divider />
+        <Empty description="No KYC information submitted yet" />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: 700 }}>
+    <div style={{ maxWidth: 900 }}>
+      <MerchantFiles merchantId={merchant.id} files={merchant.files || []} onRefresh={onRefresh} />
+      <Divider />
       {isSupplementRequired && (
         <Alert
           message="Supplement Required"

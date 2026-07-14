@@ -29,6 +29,7 @@ export const merchantService = {
         kycInfo: true,
         paymentMethods: { orderBy: { createdAt: 'asc' } },
         entityAssociations: { orderBy: { createdAt: 'asc' } },
+        files: { orderBy: { createdAt: 'desc' } },
       },
     });
   },

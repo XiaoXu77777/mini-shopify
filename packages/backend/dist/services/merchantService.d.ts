@@ -108,6 +108,18 @@ export declare const merchantService: {
             idType: string | null;
             idNo: string | null;
         }[];
+        files: {
+            merchantId: string;
+            id: string;
+            createdAt: Date;
+            fileName: string;
+            requestId: string;
+            originalFileName: string;
+            fileKey: string;
+            fileSize: number;
+            fileSha256: string;
+            mimeType: string | null;
+        }[];
     } & {
         registrationRequestId: string | null;
         riskLevel: string | null;

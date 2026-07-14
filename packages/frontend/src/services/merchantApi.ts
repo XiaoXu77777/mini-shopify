@@ -1,5 +1,5 @@
 import api from './api';
-import type { Merchant, DashboardStats, PaymentMethod, Notification, AppConfig, MockPresets, EntityAssociation } from '../types';
+import type { Merchant, DashboardStats, PaymentMethod, Notification, AppConfig, MockPresets, EntityAssociation, MerchantFile } from '../types';
 
 export const merchantApi = {
   create(data: { shopName: string; region?: string; email: string }) {
@@ -58,6 +58,19 @@ export const merchantApi = {
 
   getNotifications(id: string) {
     return api.get<{ data: Notification[] }>(`/merchants/${id}/notifications`);
+  },
+
+  uploadFile(id: string, file: File) {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return api.post<MerchantFile>(`/merchants/${id}/files`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
+
+  getFiles(id: string) {
+    return api.get<{ data: MerchantFile[] }>(`/merchants/${id}/files`);
   },
 
   getConfig() {

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
+    "test": "node --import tsx --test --experimental-test-coverage src/tests/*.test.ts",
     "start": "node dist/app.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
