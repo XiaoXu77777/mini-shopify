@@ -31,7 +31,7 @@ export interface AntomUploadFileResponse {
 
 interface FileUploaderConfig {
   mockMode: boolean;
-  baseUrl: string;
+  bigSizeBaseUrl: string;
   clientId: string;
   privateKey: string;
   integrationPartnerId?: string;
@@ -152,7 +152,7 @@ export function createMerchantFileUploader(
         }
 
         const response = await dependencies.fetch(
-          `${dependencies.config.baseUrl}${UPLOAD_FILE_PATH}`,
+          `${dependencies.config.bigSizeBaseUrl.replace(/\/+$/, '')}${UPLOAD_FILE_PATH}`,
           { method: 'POST', headers, body: form },
         );
         const responseBody = await response.text();
@@ -195,7 +195,7 @@ export const merchantFileUploader = {
     return createMerchantFileUploader({
       config: {
         mockMode: appConfig.mockMode,
-        baseUrl: appConfig.antom.baseUrl,
+        bigSizeBaseUrl: appConfig.antom.bigSizeBaseUrl,
         clientId: appConfig.antom.clientId,
         privateKey: appConfig.antom.privateKey,
         integrationPartnerId: appConfig.antom.parentMerchantId,

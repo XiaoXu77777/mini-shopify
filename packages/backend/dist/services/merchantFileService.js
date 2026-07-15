@@ -97,7 +97,7 @@ function createMerchantFileUploader(overrides) {
                 if (dependencies.config.agentToken) {
                     headers['agent-token'] = dependencies.config.agentToken;
                 }
-                const response = await dependencies.fetch(`${dependencies.config.baseUrl}${exports.UPLOAD_FILE_PATH}`, { method: 'POST', headers, body: form });
+                const response = await dependencies.fetch(`${dependencies.config.bigSizeBaseUrl.replace(/\/+$/, '')}${exports.UPLOAD_FILE_PATH}`, { method: 'POST', headers, body: form });
                 const responseBody = await response.text();
                 let result;
                 try {
@@ -134,7 +134,7 @@ exports.merchantFileUploader = {
         return createMerchantFileUploader({
             config: {
                 mockMode: config_1.config.mockMode,
-                baseUrl: config_1.config.antom.baseUrl,
+                bigSizeBaseUrl: config_1.config.antom.bigSizeBaseUrl,
                 clientId: config_1.config.antom.clientId,
                 privateKey: config_1.config.antom.privateKey,
                 integrationPartnerId: config_1.config.antom.parentMerchantId,

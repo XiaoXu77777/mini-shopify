@@ -70,7 +70,7 @@ describe('merchant file uploader', () => {
     const uploader = createMerchantFileUploader({
       config: {
         mockMode: false,
-        baseUrl: 'https://open-sea-global.alipay.com',
+        bigSizeBaseUrl: 'https://open-big-sea.alipay.com/',
         clientId: 'client-id',
         privateKey: 'private-key',
         integrationPartnerId: 'partner-id',
@@ -118,7 +118,7 @@ describe('merchant file uploader', () => {
       expectedBody,
       'private-key',
     ]]);
-    assert.equal(capturedUrl, `https://open-sea-global.alipay.com${UPLOAD_FILE_PATH}`);
+    assert.equal(capturedUrl, `https://open-big-sea.alipay.com${UPLOAD_FILE_PATH}`);
     assert.equal(capturedForm?.get('body'), expectedBody);
     const uploadedFile = capturedForm?.get('file');
     assert.ok(uploadedFile instanceof File);
@@ -136,7 +136,7 @@ describe('merchant file uploader', () => {
     const uploader = createMerchantFileUploader({
       config: {
         mockMode: false,
-        baseUrl: 'https://example.test',
+        bigSizeBaseUrl: 'https://example.test',
         clientId: 'client-id',
         privateKey: 'private-key',
         integrationPartnerId: 'partner-id',
@@ -164,7 +164,7 @@ describe('merchant file uploader', () => {
     const mockUploader = createMerchantFileUploader({
       config: {
         mockMode: true,
-        baseUrl: 'https://example.test',
+        bigSizeBaseUrl: 'https://example.test',
         clientId: '',
         privateKey: '',
         integrationPartnerId: 'partner-id',

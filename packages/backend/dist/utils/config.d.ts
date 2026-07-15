@@ -6,6 +6,7 @@ export declare const config: {
         privateKey: string;
         publicKey: string;
         baseUrl: string;
+        bigSizeBaseUrl: string;
         agentToken: string;
         parentMerchantId: string | undefined;
         defaultSettlementCurrency: string;

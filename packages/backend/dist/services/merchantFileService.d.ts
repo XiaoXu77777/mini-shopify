@@ -22,7 +22,7 @@ export interface AntomUploadFileResponse {
 }
 interface FileUploaderConfig {
     mockMode: boolean;
-    baseUrl: string;
+    bigSizeBaseUrl: string;
     clientId: string;
     privateKey: string;
     integrationPartnerId?: string;

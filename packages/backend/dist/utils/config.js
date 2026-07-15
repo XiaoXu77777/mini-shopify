@@ -15,6 +15,7 @@ exports.config = {
         privateKey: process.env.ANTOM_PRIVATE_KEY || '',
         publicKey: process.env.ANTOM_PUBLIC_KEY || '',
         baseUrl: process.env.ANTOM_BASE_URL || 'https://open-sea-global.alipay.com',
+        bigSizeBaseUrl: process.env.ANTOM_BIG_SIZE_BASE_URL || 'https://open-big-sea.alipay.com',
         agentToken: process.env.ANTOM_AGENT_TOKEN || '',
         parentMerchantId: process.env.PARENT_MERCHANT_ID,
         defaultSettlementCurrency: process.env.DEFAULT_SETTLEMENT_CURRENCY || 'HKD',
